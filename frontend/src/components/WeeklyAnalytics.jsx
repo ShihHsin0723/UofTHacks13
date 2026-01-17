@@ -31,7 +31,7 @@ const Chatbot = () => {
 
   return (
     <Layout>
-      <div className="p-8 h-full flex flex-col">
+      <div className="min-h-screen p-8 flex flex-col" style={{ background: "linear-gradient(to bottom right, #cdd5e1, #e1dff0, #f1e7dd)" }}>
         <div className="max-w-7xl mx-auto w-full flex flex-col h-full">
           <h1 className="text-4xl font-bold mb-8" style={{ color: "#374151" }}>
             Weekly Analytics

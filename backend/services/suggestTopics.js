@@ -18,21 +18,16 @@ You are an intelligent journaling assistant. Your user interacts in three primar
 Analyze these entries from the past 3 days:
 """${entriesText}"""
 
-Identify the dominant mode. Then, generate 5 "Entry Starters" for the user to write about today.
+Identify the dominant mode. Then, generate 3 "Entry Starters" for the user to write about today.
 
 Rules for Suggested Topics:
 - Use 2–4 words maximum.
-- Use "My", "Today's", or "This" to make it feel personal (e.g., "My creative flow").
-- Use active, warm verbs (e.g., "Exploring", "Celebrating", "Honoring").
-- They should look like titles the user would actually name their journal entry.
 - Do NOT use questions or periods.
 - Return one topic per line.
 
 Example output:
 My current headspace
 Today's small wins
-Exploring this challenge
-Honoring my progress
 My evening reflections
 `;
 
