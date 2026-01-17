@@ -14,7 +14,19 @@ datasource db {
 }
 
 model User {
-  id            Int         @id @default(autoincrement())
-  email         String      @unique
-  name          String      @default("")
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  password      String
+  email         String         @unique
+  journalEntries JournalEntry[]
+}
+
+model JournalEntry {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  content   String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
 }
