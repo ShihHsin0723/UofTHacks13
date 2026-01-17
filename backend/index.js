@@ -115,5 +115,75 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.post("/journal", jwtAuth, async (req, res) => {
+  const { date, content } = req.body;
+
+  if (typeof content !== "string" || content.trim().length === 0) {
+    return res.status(400).json({ message: "Content is required" });
+  }
+
+  const parsedDate = date ? new Date(date) : null;
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+    return res.status(400).json({ message: "Invalid or missing date" });
+  }
+
+  try {
+    const entry = await prisma.journalEntry.create({
+      data: {
+        date: parsedDate,
+        content: content.trim(),
+        userId: req.user.id,
+      },
+      select: {
+        id: true,
+        date: true,
+        content: true,
+      },
+    });
+
+    res.status(201).json(entry);
+  } catch (error) {
+    console.error("Failed to create journal entry", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.get("/journal", jwtAuth, async (req, res) => {
+  const { date } = req.query;
+  const parsedDate = date ? new Date(date) : null;
+
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+    return res.status(400).json({ message: "Invalid or missing date" });
+  }
+
+  // Normalize to start/end of day in UTC to capture all entries for that date
+  const startOfDay = new Date(Date.UTC(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate()));
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+  try {
+    const entries = await prisma.journalEntry.findMany({
+      where: {
+        userId: req.user.id,
+        date: {
+          gte: startOfDay,
+          lt: endOfDay,
+        },
+      },
+      orderBy: { date: "asc" },
+      select: {
+        id: true,
+        date: true,
+        content: true,
+      },
+    });
+
+    res.status(200).json(entries);
+  } catch (error) {
+    console.error("Failed to fetch journal entries", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 
 module.exports = app;
