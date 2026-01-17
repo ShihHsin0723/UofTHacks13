@@ -1,10 +1,13 @@
-const { PrismaClient } = require("@prisma/client");
+import dotenv from "dotenv";
+import cors from "cors";
+import jwt from "jsonwebtoken";
+import express from "express";
+import { PrismaClient } from "@prisma/client";
+import jwtAuth from "./middleware/jwtAuth.js";
+
+dotenv.config({ quiet: true });
+
 const prisma = new PrismaClient();
-require("dotenv").config({ quiet: true });
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const jwtAuth = require("./middleware/jwtAuth");
-const express = require("express");
 const app = express();
 const classifyJournal = require("./googleGemini");
 
@@ -204,5 +207,4 @@ app.get("/journal", jwtAuth, async (req, res) => {
   }
 });
 
-
-module.exports = app;
+export default app;

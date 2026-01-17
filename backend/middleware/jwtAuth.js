@@ -1,6 +1,6 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
-function jwtAuth(req, res, next) {
+export default function jwtAuth(req, res, next) {
   const h = req.headers.authorization;
   if (!h || !h.startsWith("Bearer ")) {
     return res.status(403).json({ message: "Unauthorized" });
@@ -15,5 +15,3 @@ function jwtAuth(req, res, next) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 }
-
-module.exports = jwtAuth;
