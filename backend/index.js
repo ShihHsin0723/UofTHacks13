@@ -9,6 +9,7 @@ dotenv.config({ quiet: true });
 
 const prisma = new PrismaClient();
 const app = express();
+const classifyJournal = require("./googleGemini");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -131,20 +132,38 @@ app.post("/journal", jwtAuth, async (req, res) => {
   }
 
   try {
+    const label = await classifyJournal(req.body.content);
+
+    var model;
+    if (label == "emotional_checkin") {
+      model = "anthropic/claude-3.7-sonnet";
+    } else if (label == "advice_request") {
+      model = "gpt-4.1";
+    } else {
+      model = "cohere/command-r-plus-08-2024";
+    }
+
+    console.log(model);
+
     const entry = await prisma.journalEntry.create({
       data: {
         date: parsedDate,
         content: content.trim(),
         userId: req.user.id,
+        category: label,
+        model: model
       },
       select: {
         id: true,
         date: true,
         content: true,
+        category: true,
+        model: true
       },
     });
 
     res.status(201).json(entry);
+
   } catch (error) {
     console.error("Failed to create journal entry", error);
     res.status(500).json({ message: "Internal Server Error" });
