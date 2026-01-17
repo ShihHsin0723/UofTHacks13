@@ -7,12 +7,16 @@ import jwtAuth from "./middleware/jwtAuth.js";
 import classifyJournal from "./services/classifyJournal.js";
 import suggestTopics from "./services/suggestTopics.js";
 import { processDailyJournal } from "./thread.js";
+import multer from "multer";
+import {
+  RekognitionClient,
+  DetectFacesCommand,
+} from "@aws-sdk/client-rekognition";
 
 dotenv.config({ quiet: true });
-
+const upload = multer(); // Stores files in memory (buffer)
 const prisma = new PrismaClient();
 const app = express();
-
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -25,10 +29,18 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
 
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
+
+const rekognition = new RekognitionClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
 app.post("/users", async (req, res) => {
   const { username, email, password } = req.body;
@@ -69,6 +81,8 @@ app.post("/users", async (req, res) => {
         id: true,
         username: true,
         email: true,
+        smileStreak: true,
+        lastSmileDate: true,
       },
     });
 
@@ -82,7 +96,12 @@ app.post("/users", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, username, password } = req.body;
 
-  const identifier = typeof email === "string" ? email.trim() : typeof username === "string" ? username.trim() : "";
+  const identifier =
+    typeof email === "string"
+      ? email.trim()
+      : typeof username === "string"
+        ? username.trim()
+        : "";
 
   if (!identifier || typeof password !== "string" || password.length < 6) {
     return res.status(400).json({ message: "Invalid login data" });
@@ -97,6 +116,8 @@ app.post("/login", async (req, res) => {
         id: true,
         username: true,
         email: true,
+        smileStreak: true,
+        lastSmileDate: true,
         password: true,
       },
     });
@@ -106,7 +127,9 @@ app.post("/login", async (req, res) => {
     }
 
     const payload = { id: user.id, username: user.username, email: user.email };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     return res.status(200).json({
       token,
@@ -114,6 +137,8 @@ app.post("/login", async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        smileStreak: user.smileStreak,
+        lastSmileDate: user.lastSmileDate,
       },
     });
   } catch (error) {
@@ -154,14 +179,14 @@ app.post("/journal", jwtAuth, async (req, res) => {
         content: content.trim(),
         userId: req.user.id,
         category: label,
-        model: model
+        model: model,
       },
       select: {
         id: true,
         date: true,
         content: true,
         category: true,
-        model: true
+        model: true,
       },
     });
 
@@ -177,9 +202,8 @@ app.post("/journal", jwtAuth, async (req, res) => {
 
     res.status(201).json({
       ...entry,
-      aiResponse: aiResponse
+      aiResponse: aiResponse,
     });
-
   } catch (error) {
     console.error("Failed to create journal entry", error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -195,7 +219,13 @@ app.get("/journal", jwtAuth, async (req, res) => {
   }
 
   // Normalize to start/end of day in UTC to capture all entries for that date
-  const startOfDay = new Date(Date.UTC(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate()));
+  const startOfDay = new Date(
+    Date.UTC(
+      parsedDate.getUTCFullYear(),
+      parsedDate.getUTCMonth(),
+      parsedDate.getUTCDate(),
+    ),
+  );
   const endOfDay = new Date(startOfDay);
   endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
 
@@ -234,16 +264,126 @@ app.get("/topics", jwtAuth, async (req, res) => {
     });
 
     if (!entries.length) {
-      return res.json({ topics: ["No entries in the past 3 days. Start journaling to get personalized suggestions!"] });
+      return res.json({
+        topics: [
+          "No entries in the past 3 days. Start journaling to get personalized suggestions!",
+        ],
+      });
     }
 
-    const entriesText = entries.map(e => e.content).join("\n\n");
+    const entriesText = entries.map((e) => e.content).join("\n\n");
 
     const topics = await suggestTopics(entriesText);
 
     res.json({ topics });
   } catch (err) {
     console.error("Failed to generate Gemini topic suggestions", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.post("/check-smile", upload.single("image"), async (req, res) => {
+  try {
+    const params = {
+      Image: { Bytes: req.file.buffer }, // req.file.buffer comes from multer
+      Attributes: ["ALL"],
+    };
+
+    const command = new DetectFacesCommand(params);
+    const data = await rekognition.send(command);
+
+    if (data.FaceDetails && data.FaceDetails.length > 0) {
+      const face = data.FaceDetails[0];
+      const isSmiling = face.Smile.Value; // Boolean (true/false)
+      const confidence = face.Smile.Confidence;
+
+      res.json({ isSmiling, confidence });
+    } else {
+      res.status(400).json({ error: "No face detected" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/smile-streak", jwtAuth, async (req, res) => {
+  const { isSmiling } = req.body;
+
+  if (typeof isSmiling !== "boolean") {
+    return res.status(400).json({
+      message: "isSmiling boolean is required to update smile streak",
+    });
+  }
+
+  const today = new Date();
+  const todayUtc = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { smileStreak: true, lastSmileDate: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // If no smile detected, return current streak without changing the date
+    if (!isSmiling) {
+      return res.status(200).json({
+        message: "No smile detected; streak unchanged",
+        smileStreak: user.smileStreak,
+        lastSmileDate: user.lastSmileDate,
+      });
+    }
+
+    let newStreak = 1;
+
+    if (user.lastSmileDate) {
+      const last = new Date(user.lastSmileDate);
+      const lastUtc = new Date(
+        Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate()),
+      );
+      const diffDays = Math.floor(
+        (todayUtc.getTime() - lastUtc.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (diffDays === 0) {
+        newStreak = user.smileStreak; // already smiled today
+      } else if (diffDays === 1) {
+        newStreak = user.smileStreak + 1; // consecutive day
+      } else {
+        newStreak = 1; // streak broken
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        smileStreak: newStreak,
+        lastSmileDate: todayUtc,
+      },
+      select: {
+        id: true,
+        username: true,
+        smileStreak: true,
+        lastSmileDate: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Smile recorded",
+      smileStreak: updated.smileStreak,
+      lastSmileDate: updated.lastSmileDate,
+    });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.error("Failed to update smile streak", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
