@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import jwtAuth from "./middleware/jwtAuth.js";
 import classifyJournal from "./services/classifyJournal.js";
 import suggestTopics from "./services/suggestTopics.js";
+import { processDailyJournal } from "./thread.js";
 
 dotenv.config({ quiet: true });
 
@@ -164,7 +165,20 @@ app.post("/journal", jwtAuth, async (req, res) => {
       },
     });
 
-    res.status(201).json(entry);
+    // Get AI response using thread.js
+    let aiResponse = null;
+    try {
+      const aiResult = await processDailyJournal(content.trim(), label, model);
+      aiResponse = aiResult.content;
+    } catch (aiError) {
+      console.error("Failed to get AI response", aiError);
+      // Continue even if AI fails - entry is still saved
+    }
+
+    res.status(201).json({
+      ...entry,
+      aiResponse: aiResponse
+    });
 
   } catch (error) {
     console.error("Failed to create journal entry", error);
