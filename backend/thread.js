@@ -124,10 +124,6 @@ async function buildWeeklyReflection(model = "gemini-2.5-flash") {
 // An example of how to call it
 const entry =
   "I feel a bit overwhelmed with the hackathon today, but I'm proud of the progress we made on the backend.";
-await processDailyJournal(
-  entry,
-  "emotional_checkin",
-  "anthropic/claude-3.7-sonnet",
-);
+await processDailyJournal(entry, "emotional_checkin", "gpt-4.1");
 
 await buildWeeklyReflection();
