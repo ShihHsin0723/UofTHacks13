@@ -4,6 +4,8 @@ import Dashboard from "./components/Dashboard";
 import Profile from "./components/Profile";
 import Chatbot from "./components/WeeklyAnalytics";
 import Journal from "./components/Journal";
+import SmileStreakTab from "./components/SmileStreakTab";
+import SmileDetector from "./pages/SmileDetector";
 
 const MyRoutes = () => {
   return (
@@ -13,6 +15,8 @@ const MyRoutes = () => {
       <Route path="/profile" element={<Profile />} />
       <Route path="/weekly-analytics" element={<Chatbot />} />
       <Route path="/journal" element={<Journal />} />
+      <Route path="/smile-streak" element={<SmileStreakTab />} />
+      <Route path="/smile-detector" element={<SmileDetector />} />
     </Routes>
   );
 };
