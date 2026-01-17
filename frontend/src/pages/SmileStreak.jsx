@@ -66,7 +66,7 @@ const SmileStreak = () => {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => navigate("/smile")}
+              onClick={() => navigate("/smile-detector")}
               className="px-6 py-3 rounded-xl bg-[#1f2a3a] text-[#EBE2DD] font-semibold shadow-[0_0_18px_rgba(31,42,58,0.35)] hover:bg-[#2c3a54] transition-colors"
             >
               Open Smile Detector
@@ -104,7 +104,7 @@ const SmileStreak = () => {
                 </p>
               </div>
               <button
-                onClick={() => navigate("/smile")}
+                onClick={() => navigate("/smile-detector")}
                 className="px-4 py-2 rounded-lg bg-[#9BABBE] text-[#1f2a3a] font-semibold shadow-[0_0_14px_rgba(155,171,190,0.45)] hover:bg-[#8d9cb4] transition-colors"
               >
                 Capture a Smile

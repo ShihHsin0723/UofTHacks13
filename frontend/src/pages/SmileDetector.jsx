@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 
@@ -7,10 +7,50 @@ const SmileDetector = () => {
   const [status, setStatus] = useState("Ready to show your beautiful smile?");
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasDetectedSmile, setHasDetectedSmile] = useState(false);
+  const [hasSmiledToday, setHasSmiledToday] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const checkTodayStreak = async () => {
+      try {
+        const response = await fetch("http://localhost:3000/smile-streak", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isSmiling: false }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) return;
+
+        if (data.lastSmileDate) {
+          const last = new Date(data.lastSmileDate);
+          const today = new Date();
+          const isSameDay =
+            last.getUTCFullYear() === today.getUTCFullYear() &&
+            last.getUTCMonth() === today.getUTCMonth() &&
+            last.getUTCDate() === today.getUTCDate();
+
+          if (isSameDay) {
+            setHasSmiledToday(true);
+            setStatus("You already recorded your smile today. Come back tomorrow!");
+          }
+        }
+      } catch (err) {
+        console.error("Could not verify smile streak for today", err);
+      }
+    };
+
+    checkTodayStreak();
+  }, []);
+
   const captureAndCheckSmile = async () => {
-    if (hasDetectedSmile) {
+    if (hasDetectedSmile || hasSmiledToday) {
       return;
     }
 
@@ -39,6 +79,7 @@ const SmileDetector = () => {
       if (result.isSmiling) {
         setStatus("Smile Detected! Smile Streak Saved.");
         setHasDetectedSmile(true);
+        setHasSmiledToday(true);
 
         const token = localStorage.getItem("token");
         if (token) {
@@ -118,16 +159,16 @@ const SmileDetector = () => {
         <div className="mt-8 space-y-6 text-center">
           <button
             onClick={captureAndCheckSmile}
-            disabled={isProcessing || hasDetectedSmile}
+            disabled={isProcessing || hasDetectedSmile || hasSmiledToday}
             className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all transform active:scale-95 ${
-              isProcessing || hasDetectedSmile
+              isProcessing || hasDetectedSmile || hasSmiledToday
                 ? "bg-[#C3C2D5] text-[#9BABBE] cursor-not-allowed"
                 : "bg-[#EBE2DD] text-[#2f3544] hover:bg-[#DEDDE7] shadow-[0_0_18px_rgba(155,171,190,0.55)]"
             }`}
           >
             {isProcessing
               ? "Processing..."
-              : hasDetectedSmile
+              : hasDetectedSmile || hasSmiledToday
                 ? "Smile Captured"
                 : "Take Snapshot"}
           </button>
