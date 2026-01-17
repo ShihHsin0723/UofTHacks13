@@ -81,13 +81,13 @@ async function getOrCreateThread(assistantId) {
   }
 }
 
-async function processDailyJournal(entry, label, recommendedModel) {
+export async function processDailyJournal(entry, label, recommendedModel) {
   const assistantId = process.env.ASSISTANT_ID;
   const threadId = await getOrCreateThread(assistantId);
 
   const llm_provider = llm_models[recommendedModel];
 
-  const messageContent = buildDailyPrompt(label) + `JOURNAL ENTRY: ${entry}`;
+  const messageContent = buildDailyPrompt({ label }) + `JOURNAL ENTRY: ${entry}`;
 
   const response = await client.addMessage(threadId, {
     content: messageContent,
@@ -121,9 +121,7 @@ async function buildWeeklyReflection(model = "gemini-2.5-flash") {
   return response;
 }
 
-// An example of how to call it
-const entry =
-  "I feel a bit overwhelmed with the hackathon today, but I'm proud of the progress we made on the backend.";
-await processDailyJournal(entry, "emotional_checkin", "gpt-4.1");
-
-await buildWeeklyReflection();
+// Example usage (commented out):
+// const entry = "I feel a bit overwhelmed with the hackathon today, but I'm proud of the progress we made on the backend.";
+// await processDailyJournal(entry, "emotional_checkin", "gpt-4.1");
+// await buildWeeklyReflection();
