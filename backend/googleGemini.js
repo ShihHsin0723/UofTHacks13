@@ -1,5 +1,5 @@
-require("dotenv").config();
-const { GoogleGenAI } = require("@google/genai");
+import "dotenv/config";
+import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({});
 
@@ -8,7 +8,7 @@ async function classifyJournal(text) {
     throw new Error("classifyJournal requires a text string");
   }
 
-const prompt = `
+  const prompt = `
 You are a journal entry classifier for an adaptive AI journey.
 
 Given a journal entry, output ONLY ONE of the following labels:
@@ -20,7 +20,7 @@ Rules:
 - Output exactly one label
 - No punctuation
 - No explanation
-- Lowercase only
+- lowercase only
 
 Journal entry:
 """${text}"""
@@ -39,4 +39,4 @@ Journal entry:
   return label;
 }
 
-module.exports = classifyJournal;
+export default classifyJournal;
