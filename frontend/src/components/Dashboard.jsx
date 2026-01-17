@@ -190,24 +190,6 @@ const Dashboard = () => {
               })}
             </div>
           </div>
-
-          {/* Selected Date Info */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="text-xl font-semibold mb-4" style={{ color: "#9BABBE" }}>
-              {selectedDate.toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </h3>
-            <div className="space-y-4">
-              {/* Journal entries for selected date would go here */}
-              <p className="text-gray-600">
-                Your journal entries for this date will appear here.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </Layout>

@@ -14,6 +14,7 @@ const Journal = () => {
   const [aiResponse, setAiResponse] = useState("");
   const [showAiResponse, setShowAiResponse] = useState(false);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [buttonClicked, setButtonClicked] = useState(false);
 
   // Get date from URL params or use today's date
   const dateParam = searchParams.get("date");
@@ -37,8 +38,8 @@ const Journal = () => {
     }
 
     setError("");
+    setButtonClicked(true); // Hide button immediately when clicked
     setLoading(true);
-    setSuccess(false);
 
     try {
       const token = localStorage.getItem("token");
@@ -72,18 +73,15 @@ const Journal = () => {
       
       // Show AI response if available
       if (data.aiResponse) {
-        setSuccess(true);
         setIsLoadingAi(true);
         // Simulate a brief delay for dramatic effect
         setTimeout(() => {
           setAiResponse(data.aiResponse);
           setIsLoadingAi(false);
           setShowAiResponse(true);
-          setSuccess(false); // Hide success message when AI response shows
-        }, 800);
+        }, 1200);
       } else {
-        // Redirect to dashboard if no AI response
-        setSuccess(true);
+        // Redirect to dashboard if no AI response (silently)
         setTimeout(() => {
           navigate("/dashboard");
         }, 1500);
@@ -124,17 +122,10 @@ const Journal = () => {
             </div>
           )}
 
-          {/* Success Message */}
-          {success && !showAiResponse && (
-            <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
-              {isLoadingAi ? "Journal entry saved! Getting AI response..." : "Journal entry saved successfully! Redirecting..."}
-            </div>
-          )}
-
           {/* Text Editor */}
           <div className="mb-6" style={{ position: "relative" }}>
             <div
-              className="rounded-lg shadow-2xl p-8"
+              className="journal-scroll-container rounded-lg shadow-2xl p-8"
               style={{
                 background: "#F5F1EB",
                 backgroundImage: `
@@ -147,12 +138,14 @@ const Journal = () => {
                 `,
                 border: "1px solid rgba(155, 171, 190, 0.2)",
                 boxShadow: "0 10px 40px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.5)",
+                overflow: "hidden",
               }}
             >
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Dear Journal..."
+                placeholder="Write your thoughts here, and your AI companion will reflect with you..."
+                disabled={buttonClicked || loading || isLoadingAi}
                 className="w-full h-96 bg-transparent border-none focus:outline-none resize-none"
                 style={{
                   fontFamily: "'Georgia', 'Times New Roman', serif",
@@ -168,16 +161,17 @@ const Journal = () => {
           </div>
 
           {/* Save Button - Send Icon */}
-          <div className="flex justify-end mb-6">
-            <button
-              onClick={handleSave}
-              disabled={loading || success || isLoadingAi}
-              className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
-              style={{
-                background: loading || isLoadingAi ? "#D9C8BF" : "#EBE2DD",
-                color: "#1F2937",
-              }}
-            >
+          {!buttonClicked && !showAiResponse && (
+            <div className="flex justify-end mb-6">
+              <button
+                onClick={handleSave}
+                disabled={loading || isLoadingAi}
+                className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+                style={{
+                  background: loading || isLoadingAi ? "#D9C8BF" : "#EBE2DD",
+                  color: "#1F2937",
+                }}
+              >
               {loading || isLoadingAi ? (
                 <div className="flex gap-1">
                   <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "0ms" }}></div>
@@ -200,8 +194,9 @@ const Journal = () => {
                   />
                 </svg>
               )}
-            </button>
-          </div>
+              </button>
+            </div>
+          )}
 
           {/* Loading Dots Overlay */}
           {(loading || isLoadingAi) && (
@@ -240,15 +235,15 @@ const Journal = () => {
             </div>
           )}
 
-          {/* AI Response Section */}
+          {/* AI Response Section - appears after scroll */}
           {showAiResponse && aiResponse && (
-            <div className="mt-8 animate-fade-in">
-              <div className="mb-6 flex items-center gap-3">
-                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(155, 171, 190, 0.3), transparent)" }}></div>
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: "#9BABBE" }}>
+            <div className="mt-6 animate-fade-in">
+              <div className="flex items-start gap-6">
+                {/* Big AI Robot Icon */}
+                <div className="flex-shrink-0">
+                  <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-xl" style={{ background: "#9BABBE" }}>
                     <svg
-                      className="w-6 h-6"
+                      className="w-16 h-16"
                       fill="white"
                       viewBox="0 0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
@@ -261,45 +256,30 @@ const Journal = () => {
                       <rect x="15" y="4" width="3" height="2" rx="1" fill="white"/>
                     </svg>
                   </div>
-                  <p className="text-sm font-medium" style={{ color: "#9BABBE" }}>
-                    AI Companion
-                  </p>
                 </div>
-                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(155, 171, 190, 0.3), transparent)" }}></div>
-              </div>
-              
-              <div
-                className="rounded-lg shadow-xl p-8 relative transform transition-all duration-500"
-                style={{
-                  background: "#F9F7F4",
-                  border: "1px solid rgba(155, 171, 190, 0.2)",
-                  boxShadow: "0 15px 50px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.5)",
-                }}
-              >
-                <div
-                  className="text-lg leading-relaxed"
-                  style={{
-                    fontFamily: "'Georgia', 'Times New Roman', serif",
-                    color: "#2D3748",
-                    letterSpacing: "0.2px",
-                    lineHeight: "1.8",
-                  }}
-                >
-                  {aiResponse}
-                </div>
-              </div>
 
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
+                {/* Speech Bubble */}
+                <div 
+                  className="relative speech-bubble-robot flex-1 rounded-3xl shadow-2xl p-6 animate-popup-scale-in"
                   style={{
-                    background: "#EBE2DD",
-                    color: "#1F2937",
+                    background: "#FFFFFF",
+                    border: "2px solid rgba(155, 171, 190, 0.3)",
+                    maxWidth: "700px",
                   }}
                 >
-                  Return to Dashboard
-                </button>
+                  {/* Response Content */}
+                  <div
+                    className="text-base leading-relaxed animate-fade-in"
+                    style={{
+                      fontFamily: "'Georgia', 'Times New Roman', serif",
+                      color: "#2D3748",
+                      letterSpacing: "0.2px",
+                      lineHeight: "1.8",
+                    }}
+                  >
+                    {aiResponse}
+                  </div>
+                </div>
               </div>
             </div>
           )}

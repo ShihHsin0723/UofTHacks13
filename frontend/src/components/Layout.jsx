@@ -11,7 +11,7 @@ const Layout = ({ children }) => {
   };
 
   const navItems = [
-    { path: "/dashboard", label: "Dashboard"},
+    { path: "/dashboard", label: "Journal Entries"},
     { path: "/profile", label: "Profile"},
     { path: "/weekly-analytics", label: "Weekly Analytics"},
   ];
