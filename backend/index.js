@@ -2,11 +2,15 @@ import dotenv from "dotenv";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import { existsSync } from "fs";
 import { PrismaClient } from "@prisma/client";
 import jwtAuth from "./middleware/jwtAuth.js";
 import classifyJournal from "./services/classifyJournal.js";
 import suggestTopics from "./services/suggestTopics.js";
-import { processDailyJournal } from "./thread.js";
+import { processDailyJournal, buildWeeklyReflection } from "./thread.js";
+import { generateMusic } from "./music.js";
 import multer from "multer";
 import {
   RekognitionClient,
@@ -19,6 +23,99 @@ const prisma = new PrismaClient();
 const app = express();
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const rekognition = new RekognitionClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const parseWeeklyReflection = (content) => {
+  const base = {
+    themes: [],
+    growthMoments: [],
+    challenge: "",
+    improvement: "",
+    identity: "",
+  };
+
+  if (typeof content !== "string") {
+    return base;
+  }
+
+  const stripItem = (item) => item.replace(/^["“”'\s]+|["“”'\s]+$/g, "");
+
+  const extractList = (label) => {
+    const match = content.match(new RegExp(`${label}:\\s*\\[(.*?)\\]`, "i"));
+    if (!match) return [];
+    return match[1]
+      .split(",")
+      .map((item) => stripItem(item))
+      .filter(Boolean);
+  };
+
+  base.themes = extractList("Themes");
+  base.growthMoments = extractList("Growth");
+
+  const challengeMatch = content.match(/Challenge:\s*\[(.*?)\]/i);
+  if (challengeMatch) {
+    const challengeItems = challengeMatch[1]
+      .split(",")
+      .map((item) => stripItem(item))
+      .filter(Boolean);
+    base.challenge = challengeItems[0] || "";
+  }
+
+  const improvementMatch = content.match(/Improvement:\s*\[(.*?)\]/i);
+  if (improvementMatch) {
+    const improvementItems = improvementMatch[1]
+      .split(",")
+      .map((item) => stripItem(item))
+      .filter(Boolean);
+    base.improvement = improvementItems[0] || "";
+  }
+
+  const identityMatch = content.match(/Identity:\s*["“”']?(.*?)["“”']?(?:\n|$)/i);
+  if (identityMatch && identityMatch[1]) {
+    base.identity = stripItem(identityMatch[1]);
+  }
+
+  return base;
+};
+
+const startOfWeekUtc = (date) => {
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const day = d.getUTCDay(); // Sunday=0
+  const diff = (day + 6) % 7; // shift so Monday=0
+  d.setUTCDate(d.getUTCDate() - diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+
+const formatStoredReflection = (record) => ({
+  weekStart: record.weekStart,
+  themes: record.themes ? JSON.parse(record.themes) : [],
+  growthMoments: record.growthMoments ? JSON.parse(record.growthMoments) : [],
+  challenge: record.challenge || "",
+  improvement: record.improvement || "",
+  identity: record.identity || "",
+});
+
+const reflectionToText = (reflection) => {
+  if (!reflection) return "No reflection available.";
+  const { themes = [], growthMoments = [], challenge = "", improvement = "", identity = "" } =
+    reflection;
+  return `Themes: ${themes.join(", ") || "None"}
+Growth: ${growthMoments.join(", ") || "None"}
+Challenge: ${challenge || "None"}
+Improvement: ${improvement || "None"}
+Identity: ${identity || "None"}`;
+};
 
 app.use(
   cors({
@@ -33,14 +130,7 @@ app.use(
 );
 
 app.use(express.json());
-
-const rekognition = new RekognitionClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+app.use("/media", express.static(path.join(__dirname, "media")));
 
 app.post("/users", async (req, res) => {
   const { username, email, password } = req.body;
@@ -279,6 +369,96 @@ app.get("/topics", jwtAuth, async (req, res) => {
   } catch (err) {
     console.error("Failed to generate Gemini topic suggestions", err);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.get("/weekly-reflection", jwtAuth, async (req, res) => {
+  const { weekStart: weekStartParam } = req.query;
+
+  const baseDate = weekStartParam ? new Date(weekStartParam) : new Date();
+  if (Number.isNaN(baseDate.getTime())) {
+    return res.status(400).json({ message: "Invalid weekStart date" });
+  }
+
+  const weekStart = startOfWeekUtc(baseDate);
+
+  try {
+    const musicFileName = `weekly-${req.user.id}-${weekStart.toISOString().slice(0, 10)}.mp3`;
+    const musicPath = path.join(__dirname, "media", musicFileName);
+    let reflectionPayload = null;
+    let musicUrl = null;
+
+    // Try to return existing reflection for this week/user
+    const existing = await prisma.weeklyReflection.findUnique({
+      where: {
+        userId_weekStart: {
+          userId: req.user.id,
+          weekStart,
+        },
+      },
+    });
+
+    if (existing) {
+      reflectionPayload = formatStoredReflection(existing);
+    }
+
+    // Otherwise generate, store, and return
+    if (!reflectionPayload) {
+      const aiResult = await buildWeeklyReflection();
+      const parsed = parseWeeklyReflection(aiResult?.content);
+
+      const created = await prisma.weeklyReflection.create({
+        data: {
+          userId: req.user.id,
+          weekStart,
+          themes: JSON.stringify(parsed.themes || []),
+          growthMoments: JSON.stringify(parsed.growthMoments || []),
+          challenge: parsed.challenge || "",
+          improvement: parsed.improvement || "",
+          identity: parsed.identity || "",
+        },
+      });
+
+      reflectionPayload = formatStoredReflection(created);
+    }
+
+    try {
+      if (!existsSync(musicPath)) {
+        const promptText = reflectionToText(reflectionPayload);
+        await generateMusic(promptText, musicFileName);
+      }
+      musicUrl = `/media/${musicFileName}`;
+    } catch (musicError) {
+      console.error("Failed to generate music", musicError);
+    }
+
+    return res.status(200).json({
+      ...reflectionPayload,
+      musicUrl,
+    });
+  } catch (err) {
+    // Handle rare race condition on unique constraint by refetching
+    if (err.code === "P2002") {
+      const existing = await prisma.weeklyReflection.findUnique({
+        where: {
+          userId_weekStart: {
+            userId: req.user.id,
+            weekStart,
+          },
+        },
+      });
+      if (existing) {
+        const musicFileName = `weekly-${req.user.id}-${weekStart.toISOString().slice(0, 10)}.mp3`;
+        const musicPath = path.join(__dirname, "media", musicFileName);
+        return res.status(200).json({
+          ...formatStoredReflection(existing),
+          musicUrl: existsSync(musicPath) ? `/media/${musicFileName}` : null,
+        });
+      }
+    }
+
+    console.error("Failed to build weekly reflection", err);
+    return res.status(500).json({ message: "Failed to build weekly reflection" });
   }
 });
 

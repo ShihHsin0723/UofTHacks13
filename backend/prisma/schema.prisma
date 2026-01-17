@@ -21,6 +21,7 @@ model User {
   smileStreak   Int            @default(0)
   lastSmileDate DateTime?
   journalEntries JournalEntry[]
+  weeklyReflections WeeklyReflection[]
 }
 
 model JournalEntry {
@@ -33,4 +34,20 @@ model JournalEntry {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
+}
+
+model WeeklyReflection {
+  id             Int      @id @default(autoincrement())
+  weekStart      DateTime
+  createdAt      DateTime @default(now())
+  themes         String
+  growthMoments  String
+  challenge      String
+  improvement    String
+  identity       String
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([userId, weekStart])
 }
