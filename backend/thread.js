@@ -101,7 +101,7 @@ export async function processDailyJournal(entry, label, recommendedModel) {
   return response;
 }
 
-async function buildWeeklyReflection(model = "gemini-2.5-flash") {
+export async function buildWeeklyReflection(model = "gemini-2.5-flash") {
   const assistantId = process.env.ASSISTANT_ID;
   const threadId = await getOrCreateThread(assistantId);
 

@@ -34,17 +34,17 @@ const Dashboard = () => {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
+
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    
+
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-    
+
     return days;
   };
 
@@ -75,16 +75,32 @@ const Dashboard = () => {
     );
   };
 
+  // Find the most recent Saturday (including today if today is Saturday)
+  const getRecentSaturday = () => {
+    const today = new Date();
+    const daysSinceSaturday = (today.getDay() - 6 + 7) % 7;
+    const recentSaturday = new Date(today);
+    recentSaturday.setDate(today.getDate() - daysSinceSaturday);
+    return recentSaturday;
+  };
+
+  const recentSaturday = getRecentSaturday();
+
   const handleDateClick = (date) => {
     if (date) {
       setSelectedDate(date);
-      
+
       // If clicking today's date, navigate to journal screen
       if (isToday(date)) {
         const dateString = date.toISOString();
         navigate(`/journal?date=${encodeURIComponent(dateString)}`);
       }
     }
+  };
+
+  const handleGiftClick = (event) => {
+    event.stopPropagation();
+    navigate("/weekly-analytics");
   };
 
   const days = getDaysInMonth(currentDate);
@@ -161,22 +177,28 @@ const Dashboard = () => {
             <div className="grid grid-cols-7 gap-2">
               {days.map((date, index) => {
                 if (!date) {
-                  return <div key={`empty-${index}`} className="aspect-square" />;
+                  return (
+                    <div key={`empty-${index}`} className="aspect-square" />
+                  );
                 }
 
                 const isCurrentDay = isToday(date);
                 const isSelectedDay = isSelected(date);
+                const isRecentSaturday =
+                  date.getDate() === recentSaturday.getDate() &&
+                  date.getMonth() === recentSaturday.getMonth() &&
+                  date.getFullYear() === recentSaturday.getFullYear();
 
                 return (
                   <button
                     key={date.toISOString()}
                     onClick={() => handleDateClick(date)}
-                    className={`aspect-square rounded-lg transition-all duration-200 flex items-center justify-center font-medium ${
+                    className={`group aspect-square rounded-lg transition-all duration-200 flex items-center justify-center font-medium ${
                       isSelectedDay
                         ? "bg-white shadow-lg scale-105"
                         : isCurrentDay
-                        ? "bg-white/50 hover:bg-white/70"
-                        : "bg-gray-50 hover:bg-white/50"
+                          ? "bg-white/50 hover:bg-white/70"
+                          : "bg-gray-50 hover:bg-white/50"
                     }`}
                     style={{
                       color: isSelectedDay ? "#9BABBE" : "#6B7280",
@@ -184,10 +206,48 @@ const Dashboard = () => {
                       cursor: isCurrentDay ? "pointer" : "default",
                     }}
                   >
-                    {date.getDate()}
+                    <div className="flex flex-col items-center gap-1 leading-tight">
+                      <span>{date.getDate()}</span>
+                      {isRecentSaturday && (
+                        <button
+                          type="button"
+                          onClick={handleGiftClick}
+                          className="inline-flex items-center justify-center rounded-full bg-red-50/90 px-5 py-4 border-none shadow-none transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-110 hover:bg-red-100/90 focus:outline-none"
+                        >
+                          <svg
+                            className="w-10 h-10 text-red-900 transition-transform duration-300 group-hover:scale-110"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M20 7h-2.18a3 3 0 0 0 .82-2 3 3 0 0 0-5-2.24L12 4.1l-1.64-1.34A3 3 0 0 0 5.36 5a3 3 0 0 0 .82 2H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM13 4a1 1 0 1 1 1 1h-1ZM9 3a1 1 0 0 1 .6.2A1 1 0 0 1 10 4a1 1 0 0 1-1 1H8a1 1 0 0 1 1-2Zm-4 5h6v3H5Zm0 5h6v5H5Zm8 5v-5h6v5Zm6-7h-6V8h6Z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </button>
                 );
               })}
+            </div>
+          </div>
+          {/* Selected Date Info */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <h3
+              className="text-xl font-semibold mb-4"
+              style={{ color: "#9BABBE" }}
+            >
+              {selectedDate.toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </h3>
+            <div className="space-y-4">
+              {/* Journal entries for selected date would go here */}
+              <p className="text-gray-600">
+                Your journal entries for this date will appear here.
+              </p>
             </div>
           </div>
         </div>
@@ -197,4 +257,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
