@@ -25,6 +25,8 @@ model JournalEntry {
   id        Int      @id @default(autoincrement())
   date      DateTime
   content   String
+  category  String?
+  model     String?
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
