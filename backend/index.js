@@ -4,12 +4,14 @@ import jwt from "jsonwebtoken";
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import jwtAuth from "./middleware/jwtAuth.js";
+import classifyJournal from "./services/classifyJournal.js";
+import suggestTopics from "./services/suggestTopics.js";
 
 dotenv.config({ quiet: true });
 
 const prisma = new PrismaClient();
 const app = express();
-const classifyJournal = require("./googleGemini");
+
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -203,6 +205,31 @@ app.get("/journal", jwtAuth, async (req, res) => {
     res.status(200).json(entries);
   } catch (error) {
     console.error("Failed to fetch journal entries", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.get("/topics", jwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+    const entries = await prisma.journalEntry.findMany({
+      where: { userId, date: { gte: threeDaysAgo } },
+      orderBy: { date: "desc" },
+    });
+
+    if (!entries.length) {
+      return res.json({ topics: ["No entries in the past 3 days. Start journaling to get personalized suggestions!"] });
+    }
+
+    const entriesText = entries.map(e => e.content).join("\n\n");
+
+    const topics = await suggestTopics(entriesText);
+
+    res.json({ topics });
+  } catch (err) {
+    console.error("Failed to generate Gemini topic suggestions", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
