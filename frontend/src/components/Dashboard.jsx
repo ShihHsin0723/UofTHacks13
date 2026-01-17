@@ -230,7 +230,6 @@ const Dashboard = () => {
               })}
             </div>
           </div>
-
           {/* Selected Date Info */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h3
