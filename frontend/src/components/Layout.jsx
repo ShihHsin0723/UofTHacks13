@@ -11,16 +11,17 @@ const Layout = ({ children }) => {
   };
 
   const navItems = [
-    { path: "/dashboard", label: "Journal Entries"},
-    { path: "/profile", label: "Profile"},
-    { path: "/weekly-analytics", label: "Weekly Analytics"},
+    { path: "/dashboard", label: "Dashboard" },
+    { path: "/profile", label: "Profile" },
+    { path: "/weekly-analytics", label: "Weekly Analytics" },
+    { path: "/smile-streak", label: "Smile Streak" },
   ];
 
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
       <div
-        className="w-64 flex-shrink-0"
+        className="w-64 shrink-0"
         style={{
           background: "#C3C2D5",
         }}
@@ -28,7 +29,9 @@ const Layout = ({ children }) => {
         <div className="h-full flex flex-col p-6">
           {/* Logo/Title */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold" style={{ color: "#374151" }}>AI•dentity</h1>
+            <h1 className="text-2xl font-bold" style={{ color: "#374151" }}>
+              AI•dentity
+            </h1>
           </div>
 
           {/* Navigation */}
@@ -40,9 +43,7 @@ const Layout = ({ children }) => {
                   key={item.path}
                   to={item.path}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? "bg-white shadow-lg"
-                      : "hover:bg-white/50"
+                    isActive ? "bg-white shadow-lg" : "hover:bg-white/50"
                   }`}
                   style={{
                     color: "#374151",
@@ -80,4 +81,3 @@ const Layout = ({ children }) => {
 };
 
 export default Layout;
-

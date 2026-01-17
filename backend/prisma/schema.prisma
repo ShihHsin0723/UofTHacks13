@@ -18,6 +18,8 @@ model User {
   username      String         @unique
   password      String
   email         String         @unique
+  smileStreak   Int            @default(0)
+  lastSmileDate DateTime?
   journalEntries JournalEntry[]
 }
 
