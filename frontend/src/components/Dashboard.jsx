@@ -77,7 +77,6 @@ const Dashboard = () => {
     return datesWithEntries.has(dateKey);
   };
 
-  // Find the most recent Saturday
   const getRecentSaturday = () => {
     const today = new Date();
     const daysSinceSaturday = (today.getDay() - 6 + 7) % 7;
@@ -144,7 +143,7 @@ const Dashboard = () => {
   };
 
   const handleGiftClick = (event) => {
-    event.stopPropagation(); // Prevents triggering the date click
+    event.stopPropagation();
     navigate("/weekly-analytics");
   };
 
@@ -159,6 +158,7 @@ const Dashboard = () => {
           </h1>
 
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            {/* Calendar Header */}
             <div className="flex items-center justify-between mb-6">
               <button onClick={() => navigateMonth(-1)} className="p-2 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: "#9BABBE" }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,12 +175,14 @@ const Dashboard = () => {
               </button>
             </div>
 
+            {/* Weekday Labels */}
             <div className="grid grid-cols-7 gap-2 mb-2">
               {daysOfWeek.map((day) => (
                 <div key={day} className="text-center font-semibold py-2" style={{ color: "#9BABBE" }}>{day}</div>
               ))}
             </div>
 
+            {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-2">
               {days.map((date, index) => {
                 if (!date) return <div key={`empty-${index}`} className="aspect-square" />;
@@ -199,7 +201,8 @@ const Dashboard = () => {
                     key={date.toISOString()}
                     onClick={() => handleDateClick(date)}
                     disabled={isFuture}
-                    className={`aspect-square rounded-lg flex flex-col items-center justify-center font-medium relative transition-all duration-200 p-2 ${
+                    // Adjusted classes: flex-col, items-end (pushes date right), justify-start (pushes date top)
+                    className={`aspect-square rounded-lg flex flex-col items-end justify-start font-medium relative transition-all duration-200 p-2 ${
                       isSelectedDay ? "bg-white shadow-lg scale-105" : 
                       isCurrentDay ? "bg-white/50 hover:bg-white/70" : 
                       isFuture ? "bg-gray-100/50" : "bg-gray-50 hover:bg-white/50"
@@ -212,8 +215,8 @@ const Dashboard = () => {
                       opacity: isFuture ? 0.7 : 1,
                     }}
                   >
-                    {/* Top row: Lock icon or spacer */}
-                    <div className="w-full flex justify-between items-start mb-auto">
+                    {/* Top row: Lock icon (left) and Date Number (right) */}
+                    <div className="w-full flex justify-between items-start">
                       <div className="z-10">
                         {isFuture && (
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" style={{ color: "#D1D5DB" }}>
@@ -221,35 +224,33 @@ const Dashboard = () => {
                           </svg>
                         )}
                       </div>
+                      {/* This span stays in the top right corner because of items-end on parent */}
+                      <span className="relative z-10 text-sm">{date.getDate()}</span>
                     </div>
 
-                    {/* Middle: Date Number */}
-                    <span className="relative z-10 text-lg">{date.getDate()}</span>
-
-                    {/* Bottom: Gift Icon for Saturday Analytics */}
-                    <div className="mt-auto">
+                    {/* Bottom row: Gift Icon for Saturday Analytics centered at bottom */}
+                    <div className="mt-auto w-full flex justify-center pb-1">
                       {isRecentSaturday && (
-                        <div 
+                        <button
+                          type="button"
                           onClick={handleGiftClick}
-                          className="cursor-pointer p-1 rounded-full bg-red-50 hover:bg-red-100 transition-colors"
+                          className="inline-flex cursor-pointer items-center justify-center rounded-full bg-red-50/90 px-5 py-4 border-none shadow-none transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-110 hover:bg-red-100/90 focus:outline-none"
                         >
-                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            className="w-10 h-10 cursor-pointer text-red-900 transition-transform duration-300 group-hover:scale-110"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
                             <path d="M20 7h-2.18a3 3 0 0 0 .82-2 3 3 0 0 0-5-2.24L12 4.1l-1.64-1.34A3 3 0 0 0 5.36 5a3 3 0 0 0 .82 2H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM13 4a1 1 0 1 1 1 1h-1ZM9 3a1 1 0 0 1 .6.2A1 1 0 0 1 10 4a1 1 0 0 1-1 1H8a1 1 0 0 1 1-2Zm-4 5h6v3H5Zm0 5h6v5H5Zm8 5v-5h6v5Zm6-7h-6V8h6Z" />
                           </svg>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="text-xl font-semibold mb-4" style={{ color: "#9BABBE" }}>
-              {selectedDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-            </h3>
-            <p className="text-gray-600">Your journal entries for this date will appear here.</p>
           </div>
         </div>
       </div>
