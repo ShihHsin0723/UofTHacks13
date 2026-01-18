@@ -36,7 +36,7 @@ export function buildDailyPrompt({ label }) {
   2) Provide 2–3 tailored points:
     - emotional_checkin: validate feelings + suggest 1 small grounding action
     - advice_request: give 2 options + a recommended next step
-    - long_rant: summarize key points first, then respond
+    - self_reflection: Identify 1-2 recurring patterns or core values demonstrated in the text
 
   Safety:
   - Do not diagnose or provide medical advice.

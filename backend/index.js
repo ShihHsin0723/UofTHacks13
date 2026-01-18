@@ -254,11 +254,11 @@ app.post("/journal", jwtAuth, async (req, res) => {
 
     var model;
     if (label == "emotional_checkin") {
-      model = "anthropic/claude-3.7-sonnet";
+      model = "claude-3-7-sonnet-20250219";
     } else if (label == "advice_request") {
       model = "gpt-4.1";
     } else {
-      model = "cohere/command-r-plus-08-2024";
+      model = "command-a-03-2025";
     }
 
     console.log(model);
