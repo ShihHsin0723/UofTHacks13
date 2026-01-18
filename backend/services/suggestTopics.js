@@ -18,9 +18,10 @@ You are an intelligent journaling assistant. Your user interacts in three primar
 Analyze these entries from the past 3 days:
 """${entriesText}"""
 
-Identify the dominant mode. Then, generate 3 "Entry Starters" for the user to write about today.
+Generate 3 topics for the user to write about today.
 
 Rules for Suggested Topics:
+- Return ONLY the 3 topics.
 - Use 2–4 words maximum.
 - Do NOT use questions or periods.
 - Return one topic per line.

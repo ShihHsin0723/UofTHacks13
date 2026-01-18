@@ -213,7 +213,7 @@ const Journal = () => {
                         <path d="M12 3L14.5 9L21 11.5L14.5 14L12 20L9.5 14L3 11.5L9.5 9L12 3Z" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                       <span className="text-sm font-bold tracking-wide uppercase" style={{ color: "#9BABBE", fontSize: "11px" }}>
-                        AI Suggestions
+                        AI Topic Suggestions
                       </span>
                     </div>
 
