@@ -19,6 +19,16 @@ const Chatbot = () => {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+    @keyframes reveal-glow {
+      0%, 100% {
+        box-shadow: 0 0 14px rgba(31,42,58,0.25), 0 0 0 0 rgba(155,171,190,0.18);
+        transform: translateY(0);
+      }
+      50% {
+        box-shadow: 0 0 22px rgba(31,42,58,0.35), 0 0 0 10px rgba(155,171,190,0.12);
+        transform: translateY(-3px);
+      }
+    }
   `;
 
   const selectOptionStyles = `
@@ -42,6 +52,9 @@ const Chatbot = () => {
   const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
   const handleSelect = (value) => {
     setWeekOffset(value);
+    setReflection(null);
+    setMusicUrl(null);
+    setError("");
     setIsDropdownOpen(false);
   };
 
@@ -106,7 +119,18 @@ const Chatbot = () => {
     <Layout>
       <style>{orbitStyles}</style>
       <style>{selectOptionStyles}</style>
-      <div className="h-full w-full overflow-y-auto">
+        <div
+          className="relative min-h-screen w-full overflow-y-auto"
+          style={{
+            background:
+              "linear-gradient(to bottom right, #cdd5e1, #e1dff0, #f1e7dd)",
+          }}
+        >
+          {/* Centered white circle accent */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="w-[480px] h-[480px] rounded-full bg-white opacity-60 blur-[4px]" />
+          </div>
+
         <div className="max-w-6xl mx-auto px-6 py-12 space-y-10">
           <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="space-y-4">
@@ -127,7 +151,7 @@ const Chatbot = () => {
                 <button
                   type="button"
                   onClick={toggleDropdown}
-                  className="w-44 flex items-center justify-between px-4 py-3 rounded-xl border border-[#2c3a54] bg-[#1f2a3a] text-sm text-[#EBE2DD] shadow-[0_0_14px_rgba(31,42,58,0.35)] hover:bg-[#2c3a54] transition-colors focus:outline-none focus:ring-2 focus:ring-[#9BABBE]"
+                  className="w-44 flex cursor-pointer items-center justify-between px-4 py-3 rounded-xl border border-[#2c3a54] bg-[#1f2a3a] text-sm text-[#EBE2DD] shadow-[0_0_14px_rgba(31,42,58,0.35)] hover:bg-[#2c3a54] transition-colors focus:outline-none focus:ring-2 focus:ring-[#9BABBE]"
                   aria-haspopup="listbox"
                   aria-expanded={isDropdownOpen}
                 >
@@ -157,7 +181,7 @@ const Chatbot = () => {
                           <button
                             type="button"
                             onClick={() => handleSelect(opt.value)}
-                            className={`w-full text-left px-4 py-2 transition-colors ${
+                            className={`w-full cursor-pointer text-left px-4 py-2 transition-colors ${
                               opt.value === weekOffset
                                 ? "bg-[#2c3a54] text-[#EBE2DD]"
                                 : "bg-[#1f2a3a] text-[#EBE2DD] hover:bg-[#2c3a54]"
@@ -171,17 +195,6 @@ const Chatbot = () => {
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={handleGenerateReflection}
-                disabled={loadingReflection}
-                className="px-6 py-3 cursor-pointer rounded-xl font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60 shadow-[0_0_14px_rgba(31,42,58,0.25)]"
-                style={{
-                  background: `linear-gradient(135deg, #4B5563 0%, #1F2937 100%)`,
-                }}
-              >
-                {loadingReflection ? "Revealing..." : "Reveal"}
-              </button>
             </div>
           </div>
 
@@ -192,19 +205,19 @@ const Chatbot = () => {
           )}
 
           {reflection ? (
-            <div className="flex flex-col items-center gap-8">
+            <div className="flex flex-col items-center gap-10">
               <div
                 className="relative"
-                style={{ width: "540px", height: "540px" }}
+                style={{
+                  width: "min(90vw, 504px)",
+                  height: "min(90vw, 504px)",
+                  marginTop: "-20px",
+                }}
               >
-                {/* Vinyl Centerpiece */}
+                {/* Oversized Vinyl backdrop */}
                 <div
-                  className="absolute inset-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
-                  style={{
-                    width: "174px",
-                    height: "174px",
-                    animation: "slow-spin 12s linear infinite",
-                  }}
+                  className="absolute inset-0 flex items-center justify-center z-0"
+                  style={{ animation: "slow-spin 18s linear infinite" }}
                 >
                   <img
                     src={vinylImg}
@@ -213,64 +226,68 @@ const Chatbot = () => {
                   />
                 </div>
 
-                {/* Reflection Nodes */}
-                {[
-                  {
-                    label: "Themes",
-                    items: reflection.themes || [],
-                    color: "#374151",
-                    bg: "#E5E7EB",
-                    pos: { top: "17%", left: "50%" },
-                  },
-                  {
-                    label: "Growth",
-                    items: reflection.growthMoments || [],
-                    color: "#1E40AF",
-                    bg: "#DBEAFE",
-                    pos: { top: "50%", left: "83%" },
-                  },
-                  {
-                    label: "Challenge",
-                    items: [reflection.challenge || "No data"],
-                    color: "#991B1B",
-                    bg: "#FEE2E2",
-                    pos: { top: "83%", left: "50%" },
-                  },
-                  {
-                    label: "Improvement",
-                    items: [reflection.improvement || "No data"],
-                    color: "#5B21B6",
-                    bg: "#EDE9FE",
-                    pos: { top: "50%", left: "17%" },
-                  },
-                ].map((section) => (
-                  <div
-                    key={section.label}
-                    className="absolute"
-                    style={{
-                      top: section.pos.top,
-                      left: section.pos.left,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
+                {/* Reflection Nodes anchored on the vinyl */}
+                <div className="absolute inset-0">
+                  {[
+                    {
+                      label: "Themes",
+                      items: reflection.themes || [],
+                      color: "#374151",
+                      bg: "#E5E7EB",
+                      pos: { top: "17%", left: "50%" },
+                    },
+                    {
+                      label: "Growth",
+                      items: reflection.growthMoments || [],
+                      color: "#1E40AF",
+                      bg: "#DBEAFE",
+                      pos: { top: "50%", left: "83%" },
+                    },
+                    {
+                      label: "Challenge",
+                      items: [reflection.challenge || "No data"],
+                      color: "#991B1B",
+                      bg: "#FEE2E2",
+                      pos: { top: "83%", left: "50%" },
+                    },
+                    {
+                      label: "Improvement",
+                      items: [reflection.improvement || "No data"],
+                      color: "#5B21B6",
+                      bg: "#EDE9FE",
+                      pos: { top: "50%", left: "17%" },
+                    },
+                  ].map((section) => (
                     <div
-                      className="w-[146px] h-[146px] rounded-full shadow-lg border-4 border-white flex flex-col items-center justify-center p-4 text-center transition-transform hover:scale-105"
-                      style={{ backgroundColor: section.bg }}
+                      key={section.label}
+                      className="absolute z-10 group"
+                      style={{
+                        top: section.pos.top,
+                        left: section.pos.left,
+                        transform: "translate(-50%, -50%)",
+                      }}
                     >
                       <div
-                        className="text-[10px] font-black uppercase tracking-widest mb-1"
-                        style={{ color: section.color }}
+                        className="w-[146px] h-[146px] rounded-full shadow-lg flex flex-col items-center justify-center p-4 text-center transition-all duration-300 ease-out group-hover:w-[200px] group-hover:h-[200px] group-hover:p-6 hover:scale-105"
+                        style={{
+                          backgroundColor: section.bg,
+                        }}
                       >
-                        {section.label}
-                      </div>
-                      <div className="text-[11px] text-gray-700 font-semibold leading-tight line-clamp-3">
-                        {section.items.length > 0
-                          ? section.items[0]
-                          : "Nothing recorded"}
+                        <div
+                          className="text-[10px] font-black uppercase tracking-widest mb-1"
+                          style={{ color: section.color }}
+                        >
+                          {section.label}
+                        </div>
+                        <div className="text-[11px] text-gray-700 font-semibold leading-tight line-clamp-3 group-hover:line-clamp-none group-hover:whitespace-normal max-h-16 group-hover:max-h-[320px] transition-all duration-300">
+                          {section.items.length > 0
+                            ? section.items[0]
+                            : "Nothing recorded"}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               <div className="text-center max-w-2xl">
@@ -292,8 +309,30 @@ const Chatbot = () => {
               </div>
             </div>
           ) : (
-            <div className="text-gray-400 italic py-10">
-              Click Reveal to view your unified reflection.
+            <div className="flex flex-col items-center justify-center gap-6 py-16 transform translate-y-[40px]">
+              <div
+                className="flex flex-col items-center gap-3"
+                style={{ marginTop: "40px" }}
+              >
+                <span className="text-[7.5rem] leading-none font-black text-[#1f2a3a]">
+                  ?
+                </span>
+                <p className="text-sm text-[#4b5161] italic">
+                  Choose a week and reveal your soundtrack.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateReflection}
+                disabled={loadingReflection}
+                className="px-8 py-3 cursor-pointer rounded-xl font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60 shadow-[0_0_14px_rgba(31,42,58,0.25)] mt-10"
+                style={{
+                  background: `linear-gradient(135deg, #4B5563 0%, #1F2937 100%)`,
+                  animation: "reveal-glow 2.2s ease-in-out infinite",
+                }}
+              >
+                {loadingReflection ? "Revealing..." : "Reveal"}
+              </button>
             </div>
           )}
         </div>

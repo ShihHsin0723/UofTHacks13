@@ -52,19 +52,23 @@ export function buildWeeklyReflectionPrompt() {
   - Identify 1–2 growth moments of the week.
   - List 1 challenge or stress point.
   - Suggest 1 concrete improvement for next week.
-  - Give 1 sentence that represents user's identity of the week. Keep it strong, compassionate, and concise. 
+  - Give 1 sentence that represents user's identity of the week. Keep it strong, compassionate, and concise.
 
-  Format: 
-  Themes: [theme1, theme2, theme3]
-  Growth: [growth1, growth2]
-  Challenge: [challenge1]
-  Improvement: [improvement1]
-  Identity: "xxxxx"
+  Response format (strict JSON, no extra text):
+  {
+    "themes": ["theme1", "theme2", "theme3"],
+    "growthMoments": ["growth1", "growth2"],
+    "challenge": "one concise challenge",
+    "improvement": "one concrete improvement",
+    "identity": "a single sentence identity statement"
+  }
+
+  Do not include markdown or code fences in your response.
 
   Safety:
   - Do not diagnose or provide medical advice.
 
-  Now write the weekly reflection.`;
+  Now output only the JSON object.`;
 }
 
 function startOfWeekUtc(date) {
@@ -97,6 +101,41 @@ function writeThreadStore(store) {
   }
 }
 
+function findThreadId({ userId = "global", date = new Date() }) {
+  const targetDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(targetDate.getTime())) {
+    throw new Error("Invalid date supplied for thread lookup");
+  }
+
+  const weekStartIso = startOfWeekUtc(targetDate).toISOString();
+  const userKey = String(userId || "global");
+  const store = readThreadStore();
+
+  if (store[userKey] && store[userKey][weekStartIso]) {
+    return store[userKey][weekStartIso];
+  }
+
+  return null;
+}
+
+function persistThreadId({ userId = "global", date = new Date(), threadId }) {
+  if (!threadId) return;
+  const targetDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(targetDate.getTime())) {
+    throw new Error("Invalid date supplied for thread persistence");
+  }
+
+  const weekStartIso = startOfWeekUtc(targetDate).toISOString();
+  const userKey = String(userId || "global");
+  const store = readThreadStore();
+
+  const updated = {
+    ...store,
+    [userKey]: { ...(store[userKey] || {}), [weekStartIso]: threadId },
+  };
+  writeThreadStore(updated);
+}
+
 async function getOrCreateThread({
   assistantId,
   userId = "global",
@@ -111,20 +150,11 @@ async function getOrCreateThread({
     throw new Error("Invalid date supplied for thread lookup");
   }
 
-  const weekStartIso = startOfWeekUtc(targetDate).toISOString();
-  const userKey = String(userId || "global");
-  const store = readThreadStore();
-
-  if (store[userKey] && store[userKey][weekStartIso]) {
-    return store[userKey][weekStartIso];
-  }
+  const existing = findThreadId({ userId, date: targetDate });
+  if (existing) return existing;
 
   const thread = await client.createThread(assistantId);
-  const updated = {
-    ...store,
-    [userKey]: { ...(store[userKey] || {}), [weekStartIso]: thread.threadId },
-  };
-  writeThreadStore(updated);
+  persistThreadId({ userId, date: targetDate, threadId: thread.threadId });
   return thread.threadId;
 }
 
@@ -161,21 +191,35 @@ export async function processDailyJournal(
 
 export async function buildWeeklyReflection({
   model = "gemini-2.5-flash",
-  forDate = new Date(),
-  userId,
+  entries = [],
 } = {}) {
   const assistantId = process.env.ASSISTANT_ID;
-  const threadId = await getOrCreateThread({
-    assistantId,
-    userId,
-    date: forDate,
-  });
+  if (!assistantId) {
+    throw new Error("ASSISTANT_ID is missing");
+  }
+
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return {
+      noData: true,
+      content: "No journal entries available for this week.",
+    };
+  }
 
   const llm_provider = llm_models[model];
 
-  const messageContent = buildWeeklyReflectionPrompt();
+  const entriesText = entries
+    .map(({ date, content }) => {
+      const day = new Date(date);
+      const dateLabel = day.toISOString().slice(0, 10);
+      return `- ${dateLabel}: ${content}`;
+    })
+    .join("\n");
 
-  const response = await client.addMessage(threadId, {
+  const messageContent = `${buildWeeklyReflectionPrompt()}\n\nWeekly journal entries:\n${entriesText}`;
+
+  const thread = await client.createThread(assistantId);
+
+  const response = await client.addMessage(thread.threadId, {
     content: messageContent,
     model_name: model,
     llm_provider: llm_provider,
@@ -184,7 +228,7 @@ export async function buildWeeklyReflection({
   console.log("\n--- AI End Of Week Reflection ---");
   console.log(response.content);
 
-  return response;
+  return { ...response, noData: false };
 }
 
 // Example usage (commented out):

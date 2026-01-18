@@ -33,59 +33,6 @@ const rekognition = new RekognitionClient({
   },
 });
 
-const parseWeeklyReflection = (content) => {
-  const base = {
-    themes: [],
-    growthMoments: [],
-    challenge: "",
-    improvement: "",
-    identity: "",
-  };
-
-  if (typeof content !== "string") {
-    return base;
-  }
-
-  const stripItem = (item) => item.replace(/^["“”'\s]+|["“”'\s]+$/g, "");
-
-  const extractList = (label) => {
-    const match = content.match(new RegExp(`${label}:\\s*\\[(.*?)\\]`, "i"));
-    if (!match) return [];
-    return match[1]
-      .split(",")
-      .map((item) => stripItem(item))
-      .filter(Boolean);
-  };
-
-  base.themes = extractList("Themes");
-  base.growthMoments = extractList("Growth");
-
-  const challengeMatch = content.match(/Challenge:\s*\[(.*?)\]/i);
-  if (challengeMatch) {
-    const challengeItems = challengeMatch[1]
-      .split(",")
-      .map((item) => stripItem(item))
-      .filter(Boolean);
-    base.challenge = challengeItems[0] || "";
-  }
-
-  const improvementMatch = content.match(/Improvement:\s*\[(.*?)\]/i);
-  if (improvementMatch) {
-    const improvementItems = improvementMatch[1]
-      .split(",")
-      .map((item) => stripItem(item))
-      .filter(Boolean);
-    base.improvement = improvementItems[0] || "";
-  }
-
-  const identityMatch = content.match(/Identity:\s*["“”']?(.*?)["“”']?(?:\n|$)/i);
-  if (identityMatch && identityMatch[1]) {
-    base.identity = stripItem(identityMatch[1]);
-  }
-
-  return base;
-};
-
 const startOfWeekUtc = (date) => {
   const d = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
@@ -108,13 +55,26 @@ const formatStoredReflection = (record) => ({
 
 const reflectionToText = (reflection) => {
   if (!reflection) return "No reflection available.";
-  const { themes = [], growthMoments = [], challenge = "", improvement = "", identity = "" } =
-    reflection;
+  const {
+    themes = [],
+    growthMoments = [],
+    challenge = "",
+    improvement = "",
+    identity = "",
+  } = reflection;
   return `Themes: ${themes.join(", ") || "None"}
 Growth: ${growthMoments.join(", ") || "None"}
 Challenge: ${challenge || "None"}
 Improvement: ${improvement || "None"}
 Identity: ${identity || "None"}`;
+};
+
+const stripJsonCodeFence = (content) => {
+  if (typeof content !== "string") return content;
+  const trimmed = content.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced) return fenced[1].trim();
+  return trimmed;
 };
 
 app.use(
@@ -387,6 +347,7 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
   }
 
   const weekStart = startOfWeekUtc(baseDate);
+  console.log("start of the week: " + weekStart);
 
   try {
     const musicFileName = `weekly-${req.user.id}-${weekStart.toISOString().slice(0, 10)}.mp3`;
@@ -404,16 +365,26 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
       },
     });
 
-    if (existing) {
+    if (
+      existing &&
+      (existing.themes ||
+        existing.growthMoments ||
+        existing.challenge ||
+        existing.improvement ||
+        existing.identity)
+    ) {
+      console.log("Reflection exists");
       reflectionPayload = formatStoredReflection(existing);
     }
 
     // Otherwise generate, store, and return
     if (!reflectionPayload) {
+      console.log("Reflection does not exist. Generate reflection");
       const weekEnd = new Date(weekStart);
       weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+      console.log("end of the week" + weekEnd);
 
-      const weeklyEntriesCount = await prisma.journalEntry.count({
+      const weeklyEntries = await prisma.journalEntry.findMany({
         where: {
           userId: req.user.id,
           date: {
@@ -421,11 +392,16 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
             lt: weekEnd,
           },
         },
+        orderBy: { date: "asc" },
+        select: { date: true, content: true },
       });
 
-      if (weeklyEntriesCount === 0) {
+      console.log("Current week entries: " + weeklyEntries.length);
+
+      if (!weeklyEntries.length) {
         return res.status(200).json({
-          message: "No journal entries for this week. Reflection not generated.",
+          message:
+            "No journal entries for this week. Reflection not generated.",
           themes: [],
           growthMoments: [],
           challenge: "",
@@ -437,24 +413,67 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
       }
 
       const aiResult = await buildWeeklyReflection({
-        forDate: weekStart,
-        userId: req.user.id,
+        entries: weeklyEntries,
       });
-      const parsed = parseWeeklyReflection(aiResult?.content);
+      if (aiResult?.noData) {
+        return res.status(200).json({
+          message:
+            "No journal entries for this week. Reflection not generated.",
+          themes: [],
+          growthMoments: [],
+          challenge: "",
+          improvement: "",
+          identity: "",
+          musicUrl: null,
+          noJournal: true,
+        });
+      }
+      const baseReflection = {
+        themes: [],
+        growthMoments: [],
+        challenge: "",
+        improvement: "",
+        identity: "",
+      };
 
-      const created = await prisma.weeklyReflection.create({
-        data: {
-          userId: req.user.id,
-          weekStart,
-          themes: JSON.stringify(parsed.themes || []),
-          growthMoments: JSON.stringify(parsed.growthMoments || []),
-          challenge: parsed.challenge || "",
-          improvement: parsed.improvement || "",
-          identity: parsed.identity || "",
-        },
-      });
+      let parsed = { ...baseReflection };
+      try {
+        const content =
+          typeof aiResult?.content === "string"
+            ? stripJsonCodeFence(aiResult.content)
+            : aiResult?.content;
+        if (typeof content === "string") {
+          parsed = { ...baseReflection, ...(JSON.parse(content) || {}) };
+        } else if (content && typeof content === "object") {
+          parsed = { ...baseReflection, ...content };
+        }
+      } catch (parseErr) {
+        console.warn("Failed to parse weekly reflection JSON", parseErr);
+      }
+      console.log("Generated reflection:", parsed);
+
+      let created;
+      try {
+        console.log("Creating weekly reflection…");
+        created = await prisma.weeklyReflection.create({
+          data: {
+            userId: req.user.id,
+            weekStart,
+            themes: JSON.stringify(parsed.themes || []),
+            growthMoments: JSON.stringify(parsed.growthMoments || []),
+            challenge: parsed.challenge || "",
+            improvement: parsed.improvement || "",
+            identity: parsed.identity || "",
+          },
+        });
+        console.log("Created record:", created);
+      } catch (err) {
+        console.error("Create weekly reflection failed", err);
+        throw err;
+      }
 
       reflectionPayload = formatStoredReflection(created);
+      console.log(created);
     }
 
     try {
@@ -493,7 +512,9 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
     }
 
     console.error("Failed to build weekly reflection", err);
-    return res.status(500).json({ message: "Failed to build weekly reflection" });
+    return res
+      .status(500)
+      .json({ message: "Failed to build weekly reflection" });
   }
 });
 
