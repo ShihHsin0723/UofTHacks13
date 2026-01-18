@@ -6,9 +6,26 @@ const SmileDetector = () => {
   const webcamRef = useRef(null);
   const [status, setStatus] = useState("Ready to show your beautiful smile?");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [hasDetectedSmile, setHasDetectedSmile] = useState(false);
   const [hasSmiledToday, setHasSmiledToday] = useState(false);
   const navigate = useNavigate();
+
+  const isSameLocalDay = (date) => {
+    if (!date) return false;
+    const d = new Date(date);
+    const today = new Date();
+    const normalizedInput = new Date(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+    );
+    return (
+      normalizedInput.getFullYear() === today.getFullYear() &&
+      normalizedInput.getMonth() === today.getMonth() &&
+      normalizedInput.getDate() === today.getDate()
+    );
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -28,18 +45,9 @@ const SmileDetector = () => {
         const data = await response.json();
         if (!response.ok) return;
 
-        if (data.lastSmileDate) {
-          const last = new Date(data.lastSmileDate);
-          const today = new Date();
-          const isSameDay =
-            last.getUTCFullYear() === today.getUTCFullYear() &&
-            last.getUTCMonth() === today.getUTCMonth() &&
-            last.getUTCDate() === today.getUTCDate();
-
-          if (isSameDay) {
-            setHasSmiledToday(true);
-            setStatus("You already recorded your smile today. Come back tomorrow!");
-          }
+        if (isSameLocalDay(data.lastSmileDate)) {
+          setHasSmiledToday(true);
+          setStatus("You already recorded your smile today. Come back tomorrow!");
         }
       } catch (err) {
         console.error("Could not verify smile streak for today", err);
@@ -51,6 +59,11 @@ const SmileDetector = () => {
 
   const captureAndCheckSmile = async () => {
     if (hasDetectedSmile || hasSmiledToday) {
+      return;
+    }
+
+    if (!isCameraReady) {
+      setStatus("Camera is warming up. Please allow access.");
       return;
     }
 
@@ -142,7 +155,36 @@ const SmileDetector = () => {
               videoConstraints={{
                 facingMode: "user",
               }}
+              onUserMedia={() => setIsCameraReady(true)}
+              onUserMediaError={() => {
+                setIsCameraReady(false);
+                setStatus("Camera access blocked. Please enable camera.");
+              }}
             />
+            {!isCameraReady && !isProcessing && (
+              <div className="absolute inset-0 bg-[#9BABBE]/70 flex flex-col items-center justify-center gap-2 text-[#1f2a3a]">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-12 w-12"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 7a2 2 0 012-2h2l1-1h6l1 1h2a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12a3 3 0 106 0 3 3 0 00-6 0z"
+                  />
+                </svg>
+                <p className="text-sm font-semibold">Camera is warming up...</p>
+              </div>
+            )}
             {isProcessing && (
               <div className="absolute inset-0 bg-[#9BABBE]/60 flex items-center justify-center backdrop-blur-sm">
                 <div className="w-8 h-8 border-4 border-[#C3C2D5] border-t-transparent rounded-full animate-spin"></div>

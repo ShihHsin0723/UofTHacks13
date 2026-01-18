@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import vinylImg from "../assets/vinyl.png";
 import Layout from "./Layout";
 
@@ -9,6 +9,8 @@ const Chatbot = () => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [musicUrl, setMusicUrl] = useState(null);
   const [audioKey, setAudioKey] = useState(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const API_URL = "http://localhost:3000";
 
@@ -18,6 +20,40 @@ const Chatbot = () => {
       to { transform: rotate(360deg); }
     }
   `;
+
+  const selectOptionStyles = `
+    #week-select option {
+      background: #1f2a3a;
+      color: #EBE2DD;
+    }
+    #week-select option:checked {
+      background: #2c3a54;
+      color: #EBE2DD;
+    }
+  `;
+
+  const weekOptions = [
+    { value: 0, label: "This Week" },
+    { value: -1, label: "Last Week" },
+    { value: -2, label: "2 Weeks Ago" },
+    { value: -3, label: "3 Weeks Ago" },
+  ];
+
+  const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
+  const handleSelect = (value) => {
+    setWeekOffset(value);
+    setIsDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const getWeekStartIso = () => {
     const today = new Date();
@@ -69,44 +105,82 @@ const Chatbot = () => {
   return (
     <Layout>
       <style>{orbitStyles}</style>
+      <style>{selectOptionStyles}</style>
       <div className="h-full w-full overflow-y-auto">
         <div className="max-w-6xl mx-auto px-6 py-12 space-y-10">
           <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="space-y-2">
+            <div className="space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-[#6b7287]">
                 Weekly Mood
               </p>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-2">
                 <h1 className="text-4xl md:text-5xl font-bold text-[#1f2a3a]">
                   Weekly Analytics
                 </h1>
-                <p className="text-base text-[#4b5161] max-w-xl">
-                  Spin up your week&apos;s highlights and soundtrack.
+                <p className="text-base mt-1 text-[#4b5161] max-w-2xl">
+                  Discover your week&apos;s highlights and soundtrack.
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <select
-                id="week-select"
-                value={weekOffset}
-                onChange={(e) => setWeekOffset(parseInt(e.target.value, 10))}
-                className="px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#9BABBE]"
-              >
-                <option value={0}>This Week</option>
-                <option value={-1}>Last Week</option>
-                <option value={-2}>2 Weeks Ago</option>
-                <option value={-3}>3 Weeks Ago</option>
-              </select>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={toggleDropdown}
+                  className="w-44 flex items-center justify-between px-4 py-3 rounded-xl border border-[#2c3a54] bg-[#1f2a3a] text-sm text-[#EBE2DD] shadow-[0_0_14px_rgba(31,42,58,0.35)] hover:bg-[#2c3a54] transition-colors focus:outline-none focus:ring-2 focus:ring-[#9BABBE]"
+                  aria-haspopup="listbox"
+                  aria-expanded={isDropdownOpen}
+                >
+                  <span>
+                    {weekOptions.find((opt) => opt.value === weekOffset)
+                      ?.label ?? "Select week"}
+                  </span>
+                  <svg
+                    className={`h-4 w-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                {isDropdownOpen && (
+                  <div className="absolute z-10 mt-2 w-44 rounded-xl border border-[#2c3a54] bg-[#1f2a3a] shadow-[0_8px_24px_rgba(31,42,58,0.35)]">
+                    <ul className="py-1 text-sm text-[#EBE2DD]" role="listbox">
+                      {weekOptions.map((opt) => (
+                        <li key={opt.value}>
+                          <button
+                            type="button"
+                            onClick={() => handleSelect(opt.value)}
+                            className={`w-full text-left px-4 py-2 transition-colors ${
+                              opt.value === weekOffset
+                                ? "bg-[#2c3a54] text-[#EBE2DD]"
+                                : "bg-[#1f2a3a] text-[#EBE2DD] hover:bg-[#2c3a54]"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleGenerateReflection}
                 disabled={loadingReflection}
-                className="px-6 py-3 rounded-xl font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60 shadow-[0_0_14px_rgba(31,42,58,0.25)]"
+                className="px-6 py-3 cursor-pointer rounded-xl font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60 shadow-[0_0_14px_rgba(31,42,58,0.25)]"
                 style={{
                   background: `linear-gradient(135deg, #4B5563 0%, #1F2937 100%)`,
                 }}
               >
-                {loadingReflection ? "Generating..." : "Generate"}
+                {loadingReflection ? "Revealing..." : "Reveal"}
               </button>
             </div>
           </div>
@@ -219,7 +293,7 @@ const Chatbot = () => {
             </div>
           ) : (
             <div className="text-gray-400 italic py-10">
-              Click generate to view your unified reflection.
+              Click Reveal to view your unified reflection.
             </div>
           )}
         </div>

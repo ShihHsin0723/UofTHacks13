@@ -283,7 +283,13 @@ app.post("/journal", jwtAuth, async (req, res) => {
     // Get AI response using thread.js
     let aiResponse = null;
     try {
-      const aiResult = await processDailyJournal(content.trim(), label, model);
+      const aiResult = await processDailyJournal(
+        content.trim(),
+        label,
+        model,
+        parsedDate,
+        req.user.id,
+      );
       aiResponse = aiResult.content;
     } catch (aiError) {
       console.error("Failed to get AI response", aiError);
@@ -404,7 +410,36 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
 
     // Otherwise generate, store, and return
     if (!reflectionPayload) {
-      const aiResult = await buildWeeklyReflection();
+      const weekEnd = new Date(weekStart);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+      const weeklyEntriesCount = await prisma.journalEntry.count({
+        where: {
+          userId: req.user.id,
+          date: {
+            gte: weekStart,
+            lt: weekEnd,
+          },
+        },
+      });
+
+      if (weeklyEntriesCount === 0) {
+        return res.status(200).json({
+          message: "No journal entries for this week. Reflection not generated.",
+          themes: [],
+          growthMoments: [],
+          challenge: "",
+          improvement: "",
+          identity: "",
+          musicUrl: null,
+          noJournal: true,
+        });
+      }
+
+      const aiResult = await buildWeeklyReflection({
+        forDate: weekStart,
+        userId: req.user.id,
+      });
       const parsed = parseWeeklyReflection(aiResult?.content);
 
       const created = await prisma.weeklyReflection.create({
@@ -495,9 +530,12 @@ app.post("/smile-streak", jwtAuth, async (req, res) => {
     });
   }
 
-  const today = new Date();
-  const todayUtc = new Date(
-    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  const now = new Date();
+  // Normalize to the user's local calendar day to avoid UTC-based off-by-one issues
+  const todayLocalStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
   );
 
   try {
@@ -523,11 +561,14 @@ app.post("/smile-streak", jwtAuth, async (req, res) => {
 
     if (user.lastSmileDate) {
       const last = new Date(user.lastSmileDate);
-      const lastUtc = new Date(
-        Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate()),
+      // Interpret the stored date as a calendar day using UTC components, then compare to local today.
+      const lastDay = new Date(
+        last.getUTCFullYear(),
+        last.getUTCMonth(),
+        last.getUTCDate(),
       );
       const diffDays = Math.floor(
-        (todayUtc.getTime() - lastUtc.getTime()) / (1000 * 60 * 60 * 24),
+        (todayLocalStart.getTime() - lastDay.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       if (diffDays === 0) {
@@ -543,7 +584,8 @@ app.post("/smile-streak", jwtAuth, async (req, res) => {
       where: { id: req.user.id },
       data: {
         smileStreak: newStreak,
-        lastSmileDate: todayUtc,
+        // Store the timestamp for today so it aligns with the user's local day.
+        lastSmileDate: todayLocalStart,
       },
       select: {
         id: true,

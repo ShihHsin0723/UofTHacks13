@@ -8,6 +8,23 @@ const SmileStreak = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  const normalizeDateToLocalDay = (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  };
+
+  const isToday = (date) => {
+    const normalized = normalizeDateToLocalDay(date);
+    if (!normalized) return false;
+    const today = new Date();
+    return (
+      normalized.getFullYear() === today.getFullYear() &&
+      normalized.getMonth() === today.getMonth() &&
+      normalized.getDate() === today.getDate()
+    );
+  };
+
   useEffect(() => {
     const fetchStreak = async () => {
       setIsLoading(true);
@@ -48,6 +65,12 @@ const SmileStreak = () => {
     fetchStreak();
   }, []);
 
+  const smiledToday = isToday(lastSmileDate);
+  const lastSmileDisplay = normalizeDateToLocalDay(lastSmileDate);
+  const nextStepText = smiledToday
+    ? "You're set for today. Come back tomorrow."
+    : "Smile today to keep it going.";
+
   return (
     <div className="min-h-screen bg-linear-to-br from-[#cdd5e1] via-[#e1dff0] to-[#f1e7dd] text-[#1f2a3a]">
       <div className="max-w-6xl mx-auto px-6 py-14 space-y-10">
@@ -67,15 +90,15 @@ const SmileStreak = () => {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => navigate("/smile-detector")}
-              className="px-6 py-3 rounded-xl bg-[#1f2a3a] text-[#EBE2DD] font-semibold shadow-[0_0_18px_rgba(31,42,58,0.35)] hover:bg-[#2c3a54] transition-colors"
+              className="px-6 py-3 rounded-xl bg-[#3c5170] text-[#EBE2DD] font-semibold shadow-[0_0_18px_rgba(31,42,58,0.35)] hover:bg-[#2c3a54] transition-colors"
             >
-              Open Smile Detector
+              Capture Your Smile
             </button>
           </div>
         </header>
 
         <section className="grid gap-6 md:grid-cols-2">
-          <div className="bg-[#404d60] text-[#EBE2DD] rounded-3xl p-8 shadow-2xl border border-[#2c3a54]">
+          <div className="bg-[#404d60] text-[#EBE2DD] rounded-3xl p-8 shadow-2xl">
             <p className="text-sm uppercase tracking-[0.2em] text-[#d7d2eb]">
               Current streak
             </p>
@@ -91,24 +114,18 @@ const SmileStreak = () => {
             </p>
           </div>
 
-          <div className="bg-[#EBE2DD] rounded-3xl p-8 border border-[#c3c2d5] shadow-lg space-y-6">
+          <div className="bg-[#EBE2DD] rounded-3xl p-8  border-[#c3c2d5] shadow-lg space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm uppercase tracking-[0.15em] text-[#4b5161]">
                   Last smile
                 </p>
                 <p className="text-3xl font-bold text-[#1f2a3a] mt-2">
-                  {lastSmileDate
-                    ? new Date(lastSmileDate).toLocaleDateString()
+                  {lastSmileDisplay
+                    ? lastSmileDisplay.toLocaleDateString()
                     : "No smiles yet"}
                 </p>
               </div>
-              <button
-                onClick={() => navigate("/smile-detector")}
-                className="px-4 py-2 rounded-lg bg-[#9BABBE] text-[#1f2a3a] font-semibold shadow-[0_0_14px_rgba(155,171,190,0.45)] hover:bg-[#8d9cb4] transition-colors"
-              >
-                Capture a Smile
-              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm text-[#4b5161]">
@@ -128,9 +145,7 @@ const SmileStreak = () => {
                 <p className="text-xs uppercase tracking-[0.12em] text-[#6b7287]">
                   Next step
                 </p>
-                <p className="text-lg font-semibold mt-2">
-                  Smile again today to keep it going.
-                </p>
+                <p className="text-lg font-semibold mt-2">{nextStepText}</p>
               </div>
             </div>
 
