@@ -107,13 +107,6 @@ async function getOrCreateThread({ assistantId, userId = "global", date = new Da
     throw new Error("Invalid date supplied for thread lookup");
   }
 
-  if (process.env.WEEKLY_THREAD_ID) {
-    return process.env.WEEKLY_THREAD_ID;
-  }
-  if (process.env.THREAD_ID) {
-    return process.env.THREAD_ID;
-  }
-
   const weekStartIso = startOfWeekUtc(targetDate).toISOString();
   const userKey = String(userId || "global");
   const store = readThreadStore();
