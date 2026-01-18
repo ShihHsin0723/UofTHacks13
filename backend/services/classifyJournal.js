@@ -13,7 +13,7 @@ You are a journal entry classifier for an adaptive AI journey.
 
 Given a journal entry, output ONLY ONE of the following labels:
 - emotional_checkin: Primarily about current feelings/moods. The tone is reactive to the moment.
-- action_navigator: Focused on tasks, problems, or work. The user is in "doing" mode or seeking solutions.
+- advice_request: Focused on tasks, problems, or work. The user is in "doing" mode or seeking solutions.
 - self_reflection: Looking at the bigger picture, analyzing personal growth, or identifying long-term patterns in life and relationships.
 
 Rules:

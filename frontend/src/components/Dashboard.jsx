@@ -201,14 +201,14 @@ const Dashboard = () => {
                     key={date.toISOString()}
                     onClick={() => handleDateClick(date)}
                     disabled={isFuture}
-                    // Adjusted classes: flex-col, items-end (pushes date right), justify-start (pushes date top)
                     className={`aspect-square rounded-lg flex flex-col items-end justify-start font-medium relative transition-all duration-200 p-2 ${
                       isSelectedDay ? "bg-white shadow-lg scale-105" : 
                       isCurrentDay ? "bg-white/50 hover:bg-white/70" : 
                       isFuture ? "bg-gray-100/50" : "bg-gray-50 hover:bg-white/50"
                     }`}
                     style={{
-                      backgroundColor: (hasJournalEntry && !isSelectedDay) ? "#e1f5d5" : undefined,
+                      // Apply pastel green if entry exists AND it's not the currently selected day
+                      backgroundColor: hasJournalEntry ? "#c3dedd" : undefined,
                       color: isFuture ? "#9CA3AF" : isSelectedDay ? "#9BABBE" : "#6B7280",
                       border: isCurrentDay ? "2px solid #9BABBE" : "none",
                       cursor: isFuture ? "not-allowed" : "pointer",
