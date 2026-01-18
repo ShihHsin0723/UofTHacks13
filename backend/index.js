@@ -212,31 +212,32 @@ app.post("/journal", jwtAuth, async (req, res) => {
   try {
     const label = await classifyJournal(req.body.content);
 
-    var model;
+    let selectedModel;
     if (label == "emotional_checkin") {
-      model = "claude-3-7-sonnet-20250219";
+      selectedModel = "claude-3-7-sonnet-20250219";
     } else if (label == "advice_request") {
-      model = "gpt-4.1";
+      selectedModel = "gpt-4.1";
     } else {
-      model = "command-a-03-2025";
+      selectedModel = "command-a-03-2025";
     }
 
-    console.log(model);
+    console.log(selectedModel);
 
-    const entry = await prisma.journalEntry.create({
+    let entry = await prisma.journalEntry.create({
       data: {
         date: parsedDate,
         content: content.trim(),
         userId: req.user.id,
-        category: label,
-        model: model,
+        label,
+        selectedModel,
       },
       select: {
         id: true,
         date: true,
         content: true,
-        category: true,
-        model: true,
+        label: true,
+        selectedModel: true,
+        aiResponse: true,
       },
     });
 
@@ -246,11 +247,26 @@ app.post("/journal", jwtAuth, async (req, res) => {
       const aiResult = await processDailyJournal(
         content.trim(),
         label,
-        model,
+        selectedModel,
         parsedDate,
         req.user.id,
       );
       aiResponse = aiResult.content;
+
+      if (aiResponse) {
+        entry = await prisma.journalEntry.update({
+          where: { id: entry.id },
+          data: { aiResponse },
+          select: {
+            id: true,
+            date: true,
+            content: true,
+            label: true,
+            selectedModel: true,
+            aiResponse: true,
+          },
+        });
+      }
     } catch (aiError) {
       console.error("Failed to get AI response", aiError);
       // Continue even if AI fails - entry is still saved
@@ -258,7 +274,7 @@ app.post("/journal", jwtAuth, async (req, res) => {
 
     res.status(201).json({
       ...entry,
-      aiResponse: aiResponse,
+      aiResponse,
     });
   } catch (error) {
     console.error("Failed to create journal entry", error);
@@ -299,6 +315,9 @@ app.get("/journal", jwtAuth, async (req, res) => {
         id: true,
         date: true,
         content: true,
+        label: true,
+        selectedModel: true,
+        aiResponse: true,
       },
     });
 
@@ -479,6 +498,7 @@ app.get("/weekly-reflection", jwtAuth, async (req, res) => {
     try {
       if (!existsSync(musicPath)) {
         const promptText = reflectionToText(reflectionPayload);
+        console.log(promptText);
         await generateMusic(promptText, musicFileName);
       }
       musicUrl = `/media/${musicFileName}`;
