@@ -140,7 +140,7 @@ const LandingPage = () => {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2" style={{ color: "#9BABBE" }}>
-              Welcome to AI•dentity
+             AI•dentity
             </h1>
             <p className="text-gray-600">Get started with your account</p>
           </div>

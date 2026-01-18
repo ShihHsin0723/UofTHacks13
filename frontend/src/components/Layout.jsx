@@ -12,7 +12,6 @@ const Layout = ({ children }) => {
 
   const navItems = [
     { path: "/dashboard", label: "Journal Entries" },
-    { path: "/profile", label: "Profile" },
     { path: "/weekly-analytics", label: "Weekly Analytics" },
     { path: "/smile-streak", label: "Smile Streak" },
   ];
