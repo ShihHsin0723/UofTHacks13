@@ -2,25 +2,17 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "./Layout";
 
+const API_URL = "http://localhost:3000";
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [journalEntries, setJournalEntries] = useState([]);
+  const [datesWithEntries, setDatesWithEntries] = useState(new Set());
 
   const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
   ];
 
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,17 +26,12 @@ const Dashboard = () => {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-
-    // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-
     return days;
   };
 
@@ -75,26 +62,83 @@ const Dashboard = () => {
     );
   };
 
-  // Find the most recent Saturday (including today if today is Saturday)
+  const isFutureDate = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate > today;
+  };
+
+  const hasEntry = (date) => {
+    if (!date) return false;
+    const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    return datesWithEntries.has(dateKey);
+  };
+
   const getRecentSaturday = () => {
     const today = new Date();
     const daysSinceSaturday = (today.getDay() - 6 + 7) % 7;
     const recentSaturday = new Date(today);
     recentSaturday.setDate(today.getDate() - daysSinceSaturday);
+    recentSaturday.setHours(0, 0, 0, 0);
     return recentSaturday;
   };
 
   const recentSaturday = getRecentSaturday();
 
-  const handleDateClick = (date) => {
-    if (date) {
-      setSelectedDate(date);
+  const fetchEntriesForMonth = async (year, month) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-      // If clicking today's date, navigate to journal screen
-      if (isToday(date)) {
-        const dateString = date.toISOString();
-        navigate(`/journal?date=${encodeURIComponent(dateString)}`);
+    try {
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const entryPromises = [];
+      
+      for (let day = 1; day <= lastDay; day++) {
+        const checkDate = new Date(year, month, day);
+        checkDate.setHours(0, 0, 0, 0);
+        
+        entryPromises.push(
+          fetch(`${API_URL}/journal?date=${checkDate.toISOString()}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(res => res.json())
+            .then(data => ({ date: checkDate, hasEntries: Array.isArray(data) && data.length > 0 }))
+            .catch(() => ({ date: checkDate, hasEntries: false }))
+        );
       }
+
+      const results = await Promise.all(entryPromises);
+      const newDatesWithEntries = new Set();
+      
+      results.forEach(({ date, hasEntries }) => {
+        if (hasEntries) {
+          const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+          newDatesWithEntries.add(dateKey);
+        }
+      });
+      
+      setDatesWithEntries(prev => {
+        const combined = new Set(prev);
+        newDatesWithEntries.forEach(key => combined.add(key));
+        return combined;
+      });
+    } catch (error) {
+      console.error("Failed to fetch journal entries:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchEntriesForMonth(currentDate.getFullYear(), currentDate.getMonth());
+  }, [currentDate]);
+
+  const handleDateClick = (date) => {
+    if (date && !isFutureDate(date)) {
+      setSelectedDate(date);
+      const dateString = date.toISOString();
+      navigate(`/journal?date=${encodeURIComponent(dateString)}`);
     }
   };
 
@@ -107,84 +151,47 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="p-8">
+      <div className="min-h-screen p-8" style={{ background: "linear-gradient(to bottom right, #cdd5e1, #e1dff0, #f1e7dd)" }}>
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-8" style={{ color: "#374151" }}>
             Journal Entries
           </h1>
 
-          {/* Calendar */}
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             {/* Calendar Header */}
             <div className="flex items-center justify-between mb-6">
-              <button
-                onClick={() => navigateMonth(-1)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                style={{ color: "#9BABBE" }}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
+              <button onClick={() => navigateMonth(-1)} className="p-2 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: "#9BABBE" }}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <h2 className="text-2xl font-bold" style={{ color: "#9BABBE" }}>
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </h2>
-              <button
-                onClick={() => navigateMonth(1)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                style={{ color: "#9BABBE" }}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
+              <button onClick={() => navigateMonth(1)} className="p-2 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: "#9BABBE" }}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
 
-            {/* Days of Week Header */}
+            {/* Weekday Labels */}
             <div className="grid grid-cols-7 gap-2 mb-2">
               {daysOfWeek.map((day) => (
-                <div
-                  key={day}
-                  className="text-center font-semibold py-2"
-                  style={{ color: "#9BABBE" }}
-                >
-                  {day}
-                </div>
+                <div key={day} className="text-center font-semibold py-2" style={{ color: "#9BABBE" }}>{day}</div>
               ))}
             </div>
 
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-2">
               {days.map((date, index) => {
-                if (!date) {
-                  return (
-                    <div key={`empty-${index}`} className="aspect-square" />
-                  );
-                }
+                if (!date) return <div key={`empty-${index}`} className="aspect-square" />;
 
                 const isCurrentDay = isToday(date);
                 const isSelectedDay = isSelected(date);
-                const isRecentSaturday =
+                const isFuture = isFutureDate(date);
+                const hasJournalEntry = hasEntry(date);
+                const isRecentSaturday = 
                   date.getDate() === recentSaturday.getDate() &&
                   date.getMonth() === recentSaturday.getMonth() &&
                   date.getFullYear() === recentSaturday.getFullYear();
@@ -193,29 +200,44 @@ const Dashboard = () => {
                   <button
                     key={date.toISOString()}
                     onClick={() => handleDateClick(date)}
-                    className={`group aspect-square rounded-lg transition-all duration-200 flex items-center justify-center font-medium ${
-                      isSelectedDay
-                        ? "bg-white shadow-lg scale-105"
-                        : isCurrentDay
-                          ? "bg-white/50 hover:bg-white/70"
-                          : "bg-gray-50 hover:bg-white/50"
+                    disabled={isFuture}
+                    // Adjusted classes: flex-col, items-end (pushes date right), justify-start (pushes date top)
+                    className={`aspect-square rounded-lg flex flex-col items-end justify-start font-medium relative transition-all duration-200 p-2 ${
+                      isSelectedDay ? "bg-white shadow-lg scale-105" : 
+                      isCurrentDay ? "bg-white/50 hover:bg-white/70" : 
+                      isFuture ? "bg-gray-100/50" : "bg-gray-50 hover:bg-white/50"
                     }`}
                     style={{
-                      color: isSelectedDay ? "#9BABBE" : "#6B7280",
+                      backgroundColor: (hasJournalEntry && !isSelectedDay) ? "#e1f5d5" : undefined,
+                      color: isFuture ? "#9CA3AF" : isSelectedDay ? "#9BABBE" : "#6B7280",
                       border: isCurrentDay ? "2px solid #9BABBE" : "none",
-                      cursor: isCurrentDay ? "pointer" : "default",
+                      cursor: isFuture ? "not-allowed" : "pointer",
+                      opacity: isFuture ? 0.7 : 1,
                     }}
                   >
-                    <div className="flex flex-col items-center gap-1 leading-tight">
-                      <span>{date.getDate()}</span>
+                    {/* Top row: Lock icon (left) and Date Number (right) */}
+                    <div className="w-full flex justify-between items-start">
+                      <div className="z-10">
+                        {isFuture && (
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" style={{ color: "#D1D5DB" }}>
+                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      {/* This span stays in the top right corner because of items-end on parent */}
+                      <span className="relative z-10 text-sm">{date.getDate()}</span>
+                    </div>
+
+                    {/* Bottom row: Gift Icon for Saturday Analytics centered at bottom */}
+                    <div className="mt-auto w-full flex justify-center pb-1">
                       {isRecentSaturday && (
                         <button
                           type="button"
                           onClick={handleGiftClick}
-                          className="inline-flex items-center justify-center rounded-full bg-red-50/90 px-5 py-4 border-none shadow-none transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-110 hover:bg-red-100/90 focus:outline-none"
+                          className="inline-flex cursor-pointer items-center justify-center rounded-full bg-red-50/90 px-5 py-4 border-none shadow-none transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-110 hover:bg-red-100/90 focus:outline-none"
                         >
                           <svg
-                            className="w-10 h-10 text-red-900 transition-transform duration-300 group-hover:scale-110"
+                            className="w-10 h-10 cursor-pointer text-red-900 transition-transform duration-300 group-hover:scale-110"
                             viewBox="0 0 24 24"
                             fill="currentColor"
                             aria-hidden="true"
@@ -228,26 +250,6 @@ const Dashboard = () => {
                   </button>
                 );
               })}
-            </div>
-          </div>
-          {/* Selected Date Info */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3
-              className="text-xl font-semibold mb-4"
-              style={{ color: "#9BABBE" }}
-            >
-              {selectedDate.toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </h3>
-            <div className="space-y-4">
-              {/* Journal entries for selected date would go here */}
-              <p className="text-gray-600">
-                Your journal entries for this date will appear here.
-              </p>
             </div>
           </div>
         </div>
