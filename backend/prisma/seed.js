@@ -25,6 +25,14 @@ async function main() {
         "Feeling that weight makes sense, and it’s okay to notice how heavy it feels without rushing past it. Your mind is looping because it cares about getting things right. Try a 5-minute body scan with slow exhales to ground, then choose one tiny task to finish.",
     },
     {
+      date: new Date("2026-01-04"),
+      content: `Today everything feels unbearably heavy. I’m exhausted, numb, and I keep thinking about how I don’t want to keep living like this anymore. I feel stuck and alone, like nothing will actually get better.`,
+      label: "emotional_checkin",
+      selectedModel: "claude-3-7-sonnet-20250219",
+      aiResponse:
+        "I’m really sorry you’re feeling this much pain, and you deserve support with it. You don’t have to carry this alone—please reach out to someone you trust or a crisis line, and stay with another person if you can. For now, slow your breathing and put your feet on the floor; grounding and connection can help you get through this moment.",
+    },
+    {
       date: new Date("2026-01-10"),
       content: `Today was surprisingly peaceful. I took a long walk and felt the tension in my shoulders ease. Even though work is still waiting, for a moment I felt light and centered.`,
       label: "emotional_checkin",

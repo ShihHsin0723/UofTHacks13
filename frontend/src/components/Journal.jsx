@@ -186,13 +186,6 @@ const Journal = () => {
                 </span>
               )}
             </h1>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-4 py-2 rounded-lg hover:bg-white/50 transition-all duration-200"
-              style={{ color: "#374151" }}
-            >
-              Go Back
-            </button>
           </div>
 
           {/* NEW: Conditional message for past dates without entries */}
@@ -349,6 +342,12 @@ const Journal = () => {
                       >
                         {aiResponse}
                       </div>
+                      <p
+                        className="mt-4 text-xs text-gray-500 italic"
+                        style={{ letterSpacing: "0.2px" }}
+                      >
+                        For journaling only—not for medical advice or diagnosis.
+                      </p>
                     </div>
                   </div>
                 </div>
