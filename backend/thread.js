@@ -1,8 +1,14 @@
 import { BackboardClient } from "backboard-sdk";
 import dotenv from "dotenv";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
 dotenv.config({ quiet: true });
 
 const client = new BackboardClient({ apiKey: process.env.BACKBOARD_API_KEY });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const THREAD_STORE_PATH = path.join(__dirname, ".weekly-threads.json");
 
 const llm_models = {
   "gpt-4.1": "openai",
@@ -61,9 +67,44 @@ export function buildWeeklyReflectionPrompt() {
   Now write the weekly reflection.`;
 }
 
-async function getOrCreateThread(assistantId) {
+function startOfWeekUtc(date) {
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const day = d.getUTCDay(); // Sunday=0
+  const diff = (day + 6) % 7; // shift so Monday=0
+  d.setUTCDate(d.getUTCDate() - diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function readThreadStore() {
+  try {
+    if (!existsSync(THREAD_STORE_PATH)) return {};
+    const raw = readFileSync(THREAD_STORE_PATH, "utf8");
+    return JSON.parse(raw || "{}");
+  } catch (err) {
+    console.error("Failed to read thread store, starting fresh", err);
+    return {};
+  }
+}
+
+function writeThreadStore(store) {
+  try {
+    writeFileSync(THREAD_STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+  } catch (err) {
+    console.error("Failed to write thread store", err);
+  }
+}
+
+async function getOrCreateThread({ assistantId, userId = "global", date = new Date() }) {
   if (!assistantId) {
     throw new Error("ASSISTANT_ID is missing");
+  }
+
+  const targetDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(targetDate.getTime())) {
+    throw new Error("Invalid date supplied for thread lookup");
   }
 
   if (process.env.WEEKLY_THREAD_ID) {
@@ -73,17 +114,33 @@ async function getOrCreateThread(assistantId) {
     return process.env.THREAD_ID;
   }
 
-  // Create a new thread for a new week
-  const isMonday = new Date().getDay() === 1;
-  if (isMonday) {
-    const thread = await client.createThread(assistantId);
-    return thread.threadId;
+  const weekStartIso = startOfWeekUtc(targetDate).toISOString();
+  const userKey = String(userId || "global");
+  const store = readThreadStore();
+
+  if (store[userKey] && store[userKey][weekStartIso]) {
+    return store[userKey][weekStartIso];
   }
+
+  const thread = await client.createThread(assistantId);
+  const updated = { ...store, [userKey]: { ...(store[userKey] || {}), [weekStartIso]: thread.threadId } };
+  writeThreadStore(updated);
+  return thread.threadId;
 }
 
-export async function processDailyJournal(entry, label, recommendedModel) {
+export async function processDailyJournal(
+  entry,
+  label,
+  recommendedModel,
+  entryDate = new Date(),
+  userId,
+) {
   const assistantId = process.env.ASSISTANT_ID;
-  const threadId = await getOrCreateThread(assistantId);
+  const threadId = await getOrCreateThread({
+    assistantId,
+    userId,
+    date: entryDate,
+  });
 
   const llm_provider = llm_models[recommendedModel];
 
@@ -101,9 +158,17 @@ export async function processDailyJournal(entry, label, recommendedModel) {
   return response;
 }
 
-export async function buildWeeklyReflection(model = "gemini-2.5-flash") {
+export async function buildWeeklyReflection({
+  model = "gemini-2.5-flash",
+  forDate = new Date(),
+  userId,
+} = {}) {
   const assistantId = process.env.ASSISTANT_ID;
-  const threadId = await getOrCreateThread(assistantId);
+  const threadId = await getOrCreateThread({
+    assistantId,
+    userId,
+    date: forDate,
+  });
 
   const llm_provider = llm_models[model];
 
