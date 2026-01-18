@@ -11,6 +11,8 @@ const Journal = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aiResponse, setAiResponse] = useState("");
+  const [label, setLabel] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
   const [showAiResponse, setShowAiResponse] = useState(false);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const [buttonClicked, setButtonClicked] = useState(false);
@@ -55,6 +57,8 @@ const Journal = () => {
           const entry = data[0];
           setContent(entry.content);
           setAiResponse(entry.aiResponse || "");
+          setLabel(entry.label || "");
+          setSelectedModel(entry.selectedModel || "");
           setIsReadOnly(true);
           setButtonClicked(true);
           if (entry.aiResponse) setShowAiResponse(true);
@@ -72,6 +76,8 @@ const Journal = () => {
             // It's today or future (but you likely handle future on dashboard)
             setContent("");
             setAiResponse("");
+            setLabel("");
+            setSelectedModel("");
             setIsReadOnly(false);
             setButtonClicked(false);
             setShowAiResponse(false);
@@ -133,6 +139,9 @@ const Journal = () => {
         setIsLoadingAi(false);
         return;
       }
+
+      setLabel(data.label || "");
+      setSelectedModel(data.selectedModel || "");
 
       if (data.aiResponse) {
         setTimeout(() => {
@@ -318,6 +327,18 @@ const Journal = () => {
                         maxWidth: "700px",
                       }}
                     >
+                      <div className="flex gap-3 mb-4 text-xs uppercase tracking-wide text-gray-500">
+                        {label && (
+                          <span className="px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
+                            Label: {label.replaceAll("_", " ")}
+                          </span>
+                        )}
+                        {selectedModel && (
+                          <span className="px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
+                            Model: {selectedModel}
+                          </span>
+                        )}
+                      </div>
                       <div
                         className="text-base leading-relaxed"
                         style={{

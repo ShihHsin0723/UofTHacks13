@@ -15,50 +15,69 @@ if (!existsSync(mediaDir)) {
 }
 
 // Example Reflection Data
-// const weeklyReflection = {
+// const weeklyReflection1 = {
 //   themes: [
-//     "Technical Project Engagement",
-//     "Managing Overwhelm",
-//     "Celebrating Progress",
+//     "Emotional Exhaustion",
+//     "Persistent Overwhelm",
+//     "Loss of Motivation",
 //   ],
 //   Growth: [
-//     "Acknowledging accomplishments despite stress",
-//     "Demonstrating resilience in high-pressure environments",
+//     "Continuing to function despite feeling drained",
+//     "Enduring pressure without immediate relief or recognition",
 //   ],
 //   Challenge: [
-//     "Experiencing overwhelm during intense",
-//     "time-sensitive projects",
+//     "Feeling constantly behind and mentally overwhelmed by",
+//     "never-ending, time-sensitive responsibilities",
 //   ],
 //   Improvement: [
-//     "Next week, consider proactively scheduling short",
-//     "intentional breaks to manage stress during demanding work periods.",
+//     "Next week may require lowering expectations and simply",
+//     "focusing on getting through tasks rather than doing them well.",
 //   ],
 //   Identity:
-//     "You are a dedicated and resilient individual who finds strength in your contributions, even amidst intense pressure.",
+//     "You are someone who keeps going out of necessity, even when motivation fades and the weight of responsibility feels heavy.",
+// };
+
+// const weeklyReflection = {
+//   themes: [
+//     "Mounting Pressure",
+//     "Gradual Emotional Fatigue",
+//     "Resigned Persistence",
+//   ],
+//   Growth: [
+//     "Pushing forward even as motivation slowly diminishes",
+//     "Adapting to stress by becoming emotionally quieter rather than stronger",
+//   ],
+//   Challenge: [
+//     "What began as manageable pressure gradually turned into",
+//     "constant mental noise and an ongoing sense of being behind",
+//   ],
+//   Improvement: [
+//     "Next week may involve accepting limited capacity and",
+//     "moving forward slowly instead of expecting renewed energy",
+//   ],
+//   Identity:
+//     "You are someone who transitions from effort to endurance, learning to exist within pressure even when enthusiasm quietly fades.",
 // };
 
 // The Music Prompt Generator
 export function buildMusicPrompt({ weeklyReflectionText }) {
   return `
-  Music that represents the user’s emotional identity over the past week. 
-  The music should reflect mood, energy, tension, and growth — not lyrics or spoken words.
-  Make the music unique. Do NOT be generic.
-  Always include at least a bit of positiveness.
+  Create a track that represents the user's themes over the past week. Try to avoid rap, but feel free to include lyrics. Prefer no reading given keywords directly. 
 
-  Translate emotions and patterns into musical elements such as:
-    - tempo
-    - key or mode (major, minor, modal, ambiguous)
-    - instrumentation
-    - harmony vs dissonance
-    - rhythm complexity
-    - dynamics (soft → intense, static → evolving)
-    - overall structure (build-up, release, looping, unresolved, etc.)
-
-    ${weeklyReflectionText}
+  Examples:
+  - If user has an exciting week, create an intense, fast-paced, and hyped track. The tempo should be fast, 130–150 bpm, with rising tension, quick transitions, and dynamic energy bursts.
+  - If user has a relaxing week, create a soothing, peaceful, and light-hearted track. 
+  - If user has mixed of emotions over the week, create a track with transitions between energy, rhythm, etc.
+  
+  Here are the highlist of user's week:
+  ${weeklyReflectionText}
 `;
 }
 
-export async function generateMusic(weeklyReflection, fileName = "composition.mp3") {
+export async function generateMusic(
+  weeklyReflection,
+  fileName = "composition.mp3",
+) {
   try {
     console.log("Step 1: Creating composition plan...");
 
@@ -70,7 +89,7 @@ export async function generateMusic(weeklyReflection, fileName = "composition.mp
     // We create the plan first to get the structured sections
     const planResponse = await elevenlabs.music.compositionPlan.create({
       prompt: buildMusicPrompt({ weeklyReflectionText }),
-      musicLengthMs: 10000,
+      musicLengthMs: 15000,
     });
 
     console.log("Step 2: Sending plan to Compose endpoint...");

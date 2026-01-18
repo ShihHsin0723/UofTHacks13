@@ -26,7 +26,7 @@ export function buildDailyPrompt({ label }) {
   - Personalize using context from earlier messages in this week’s thread only.
 
   Style:
-  - Format: 3-4 sentences one short paragraph.
+  - Format: 3 sentences. Do NOT exceed.
   - Ask at most ONE follow-up question only if user asks for advice explicitly.
 
   Entry type: ${label}
