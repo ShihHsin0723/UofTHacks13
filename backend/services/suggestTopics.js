@@ -9,7 +9,7 @@ async function suggestTopics(entriesText) {
     throw new Error("suggestTopics requires a text string of past entries");
   }
 
-const prompt = `
+  const prompt = `
 You are an intelligent journaling assistant. Your user interacts in three primary modes: 
 1. Emotional Check-in (processing feelings)
 2. Request Advice (problem-solving/seeking guidance)
@@ -32,18 +32,17 @@ My evening reflections
 `;
 
   const res = await ai.models.generateContent({
-    model: "gemini-2.5-flash", // same as classifyJournal
+    model: "gemini-2.5-flash-lite", // same as classifyJournal
     contents: [{ role: "user", parts: [{ text: prompt }] }],
   });
 
   // Gemini returns text in res.text or fallback candidates
-  const rawText =
-    res.text ?? res.candidates?.[0]?.content?.[0]?.text ?? "";
+  const rawText = res.text ?? res.candidates?.[0]?.content?.[0]?.text ?? "";
 
   // Convert to array
   const topics = rawText
     .split("\n")
-    .map(line => line.trim())
+    .map((line) => line.trim())
     .filter(Boolean);
 
   return topics;

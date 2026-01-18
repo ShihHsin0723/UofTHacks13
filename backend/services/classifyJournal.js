@@ -27,13 +27,12 @@ Journal entry:
 `;
 
   const res = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
   });
 
   const label = (
-    res.text ??
-    res.candidates?.[0]?.content?.parts?.[0]?.text
+    res.text ?? res.candidates?.[0]?.content?.parts?.[0]?.text
   ).trim();
 
   return label;

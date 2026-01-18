@@ -12,8 +12,8 @@ const THREAD_STORE_PATH = path.join(__dirname, ".weekly-threads.json");
 
 const llm_models = {
   "gpt-4.1": "openai",
-  "anthropic/claude-3.7-sonnet": "openrouter",
-  "cohere/command-r-plus-08-2024": "openrouter",
+  "claude-3-7-sonnet-20250219": "anthropic",
+  "command-a-03-2025": "cohere",
   "gemini-2.5-flash": "google",
 };
 
@@ -97,7 +97,11 @@ function writeThreadStore(store) {
   }
 }
 
-async function getOrCreateThread({ assistantId, userId = "global", date = new Date() }) {
+async function getOrCreateThread({
+  assistantId,
+  userId = "global",
+  date = new Date(),
+}) {
   if (!assistantId) {
     throw new Error("ASSISTANT_ID is missing");
   }
@@ -116,7 +120,10 @@ async function getOrCreateThread({ assistantId, userId = "global", date = new Da
   }
 
   const thread = await client.createThread(assistantId);
-  const updated = { ...store, [userKey]: { ...(store[userKey] || {}), [weekStartIso]: thread.threadId } };
+  const updated = {
+    ...store,
+    [userKey]: { ...(store[userKey] || {}), [weekStartIso]: thread.threadId },
+  };
   writeThreadStore(updated);
   return thread.threadId;
 }
@@ -137,7 +144,8 @@ export async function processDailyJournal(
 
   const llm_provider = llm_models[recommendedModel];
 
-  const messageContent = buildDailyPrompt({ label }) + `JOURNAL ENTRY: ${entry}`;
+  const messageContent =
+    buildDailyPrompt({ label }) + `JOURNAL ENTRY: ${entry}`;
 
   const response = await client.addMessage(threadId, {
     content: messageContent,
@@ -180,6 +188,7 @@ export async function buildWeeklyReflection({
 }
 
 // Example usage (commented out):
-// const entry = "I feel a bit overwhelmed with the hackathon today, but I'm proud of the progress we made on the backend.";
-// await processDailyJournal(entry, "emotional_checkin", "gpt-4.1");
+// const entry =
+//   "I feel a bit overwhelmed with the hackathon today, but I'm proud of the progress we made on the backend.";
+// await processDailyJournal(entry, "emotional_checkin", "command-a-03-2025");
 // await buildWeeklyReflection();
